@@ -1,539 +1,801 @@
--- ====================================================================================
--- [[ ULTIMATE STEAL AN EGG: INSTANT RESPONSE & FAST RETURN ]] --
--- ====================================================================================
+--========================================================
+-- STEAL AN EGG - HUB (SPEED, AUTO EGG, TITAN & EVENT)
+-- Put in: StarterPlayer > StarterPlayerScripts (LocalScript)
+--========================================================
 
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
 
-local guiParent = gethui and gethui() or CoreGui:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
 
-if guiParent:FindFirstChild("StealAnEggSmartUI") then
-    guiParent.StealAnEggSmartUI:Destroy()
-end
+-- States & Values
+local speedEnabled = false
+local highSpeedVal = 240
+local lowSpeedVal = 50
+local isHighSpeedMode = false
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "StealAnEggSmartUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = guiParent
+local autoEggEnabled = false
+local isProcessingEgg = false
 
-local colors = {
-    bg = Color3.fromRGB(15, 15, 20),
-    card = Color3.fromRGB(24, 24, 32),
-    blue = Color3.fromRGB(0, 210, 255),
-    purple = Color3.fromRGB(138, 43, 226),
-    text = Color3.fromRGB(255, 255, 255),
-    green = Color3.fromRGB(46, 204, 113),
-    yellow = Color3.fromRGB(255, 215, 0)
-}
+local flying = false
+local flySpeed = 80
+local flyBodyVel, flyBodyGyro
 
--- Floating Button (⚡)
-local OpenBtn = Instance.new("TextButton")
-OpenBtn.Size = UDim2.new(0, 50, 0, 50)
-OpenBtn.Position = UDim2.new(0, 20, 0.5, -25)
-OpenBtn.BackgroundColor3 = colors.bg
-OpenBtn.Text = "⚡"
-OpenBtn.TextSize = 25
-OpenBtn.Parent = ScreenGui
-Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0.5, 0)
-Instance.new("UIStroke", OpenBtn).Color = colors.purple
+local espEnabled = false
+local savedCoords = {}
 
--- Main Menu (ScrollingFrame)
-local MainFrame = Instance.new("ScrollingFrame")
-MainFrame.Size = UDim2.new(0, 400, 0, 450)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
-MainFrame.BackgroundColor3 = colors.bg
-MainFrame.Visible = false
-MainFrame.Active = true
-MainFrame.Parent = ScreenGui
-MainFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
-MainFrame.ScrollBarThickness = 4
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", MainFrame).Color = colors.blue
+-- New Update States (Titan Temple & Hungry Frog Event)
+local autoStealTitan = false
+local autoFeedFrog = false
+local godModeEnabled = false
+local instantSteal = false
 
-OpenBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
-local UIListLayout = Instance.new("UIListLayout", MainFrame)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-local UIPadding = Instance.new("UIPadding", MainFrame)
-UIPadding.PaddingTop = UDim.new(0, 12)
-
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, -20, 0, 28)
-Title.BackgroundTransparency = 1
-Title.Text = "⚡ INSTANT RESPONSE STEALER"
-Title.TextColor3 = colors.yellow
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 10
-
--- Config State
-local Config = {
-    AutoSteal = false,
-    FlightSpeed = 700, -- ល្បឿនលឿនខ្លាំង
-    MaxFlyRadius = 10000, 
-    SelectedBiomes = {
-        ["All"] = true,
-        ["Forest"] = true,
-        ["Lake"] = true,
-        ["Desert"] = true,
-        ["Jungle"] = true,
-        ["Snow"] = true,
-        ["Volcano"] = true,
-        ["Abyss Ocean"] = true,
-        ["Prehistoric"] = true,
-        ["Cosmic"] = true,
-        ["Cherry Blossom"] = true,
-        ["Titan Temple"] = true,
-        ["Brainrot Eggs"] = true,
-        ["Monster Eggs"] = true,
-        ["Rift Eggs"] = true
-    }
-}
-
--- 🏆 Rarity Tiers
-local rarityWeights = {
-    ["divine"] = 10,
-    ["eternal"] = 9,
-    ["secret"] = 8,
-    ["cosmic"] = 7,
-    ["mythic"] = 6,
-    ["legendary"] = 5,
-    ["epic"] = 4,
-    ["rare"] = 3,
-    ["uncommon"] = 2,
-    ["common"] = 1
-}
-
-local function parseMoneyValue(text)
-    if not text then return 0 end
-    text = text:lower()
-    local num = 0
-    local val = text:match("(%d+%.?%d*)%s*k")
-    if val then num = tonumber(val) * 1e3 end
-    val = text:match("(%d+%.?%d*)%s*m")
-    if val then num = tonumber(val) * 1e6 end
-    val = text:match("(%d+%.?%d*)%s*b")
-    if val then num = tonumber(val) * 1e9 end
-    val = text:match("(%d+%.?%d*)%s*t")
-    if val then num = tonumber(val) * 1e12 end
-    if num == 0 then
-        local rawNum = text:match("(%d+)")
-        if rawNum then num = tonumber(rawNum) end
+-- Helper functions
+local function parseSpeedValue(val)
+    if typeof(val) == "number" then return val end
+    if typeof(val) == "string" then
+        local numStr = val:match("[%d%.]+")
+        if not numStr then return 0 end
+        local num = tonumber(numStr) or 0
+        if val:find("B") or val:find("b") then return num * 1e9
+        elseif val:find("M") or val:find("m") then return num * 1e6
+        elseif val:find("K") or val:find("k") then return num * 1e3
+        end
+        return num
     end
-    return num
+    return 0
 end
 
--- 🚀 Speed TextBox
-local SpeedFrame = Instance.new("Frame", MainFrame)
-SpeedFrame.Size = UDim2.new(1, -30, 0, 38)
-SpeedFrame.BackgroundColor3 = colors.card
-Instance.new("UICorner", SpeedFrame).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", SpeedFrame).Color = colors.blue
-
-local SpeedLabel = Instance.new("TextLabel", SpeedFrame)
-SpeedLabel.Size = UDim2.new(0.65, 0, 1, 0)
-SpeedLabel.Position = UDim2.new(0, 10, 0, 0)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "✈️ Speed (10 - 1000):"
-SpeedLabel.TextColor3 = colors.text
-SpeedLabel.Font = Enum.Font.GothamSemibold
-SpeedLabel.TextSize = 11
-SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local SpeedBox = Instance.new("TextBox", SpeedFrame)
-SpeedBox.Size = UDim2.new(0, 70, 0, 24)
-SpeedBox.Position = UDim2.new(1, -80, 0.5, -12)
-SpeedBox.BackgroundColor3 = colors.bg
-SpeedBox.Text = tostring(Config.FlightSpeed)
-SpeedBox.TextColor3 = colors.yellow
-SpeedBox.Font = Enum.Font.GothamBold
-SpeedBox.TextSize = 12
-Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 4)
-Instance.new("UIStroke", SpeedBox).Color = colors.yellow
-
-SpeedBox.FocusLost:Connect(function()
-    local val = tonumber(SpeedBox.Text)
-    if val then Config.FlightSpeed = math.clamp(val, 10, 1000) end
-    SpeedBox.Text = tostring(Config.FlightSpeed)
-end)
-
--- 🌐 Max Fly Radius TextBox
-local RadiusFrame = Instance.new("Frame", MainFrame)
-RadiusFrame.Size = UDim2.new(1, -30, 0, 38)
-RadiusFrame.BackgroundColor3 = colors.card
-Instance.new("UICorner", RadiusFrame).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", RadiusFrame).Color = colors.purple
-
-local RadiusLabel = Instance.new("TextLabel", RadiusFrame)
-RadiusLabel.Size = UDim2.new(0.65, 0, 1, 0)
-RadiusLabel.Position = UDim2.new(0, 10, 0, 0)
-RadiusLabel.BackgroundTransparency = 1
-RadiusLabel.Text = "🌐 Max Range (Fly Distance):"
-RadiusLabel.TextColor3 = colors.text
-RadiusLabel.Font = Enum.Font.GothamSemibold
-RadiusLabel.TextSize = 11
-RadiusLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local RadiusBox = Instance.new("TextBox", RadiusFrame)
-RadiusBox.Size = UDim2.new(0, 70, 0, 24)
-RadiusBox.Position = UDim2.new(1, -80, 0.5, -12)
-RadiusBox.BackgroundColor3 = colors.bg
-RadiusBox.Text = tostring(Config.MaxFlyRadius)
-RadiusBox.TextColor3 = colors.yellow
-RadiusBox.Font = Enum.Font.GothamBold
-RadiusBox.TextSize = 12
-Instance.new("UICorner", RadiusBox).CornerRadius = UDim.new(0, 4)
-Instance.new("UIStroke", RadiusBox).Color = colors.yellow
-
-RadiusBox.FocusLost:Connect(function()
-    local val = tonumber(RadiusBox.Text)
-    if val then Config.MaxFlyRadius = math.clamp(val, 100, 20000) end
-    RadiusBox.Text = tostring(Config.MaxFlyRadius)
-end)
-
--- 📌 Set Safe Zone
-local SetBaseBtn = Instance.new("TextButton", MainFrame)
-SetBaseBtn.Size = UDim2.new(1, -30, 0, 35)
-SetBaseBtn.BackgroundColor3 = colors.card
-SetBaseBtn.Text = "📌 Set Center Safe Zone"
-SetBaseBtn.TextColor3 = colors.yellow
-SetBaseBtn.Font = Enum.Font.GothamBold
-SetBaseBtn.TextSize = 11
-Instance.new("UICorner", SetBaseBtn).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", SetBaseBtn).Color = colors.yellow
-
-local savedBaseCFrame = nil
-SetBaseBtn.MouseButton1Click:Connect(function()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        savedBaseCFrame = char.HumanoidRootPart.CFrame
-        SetBaseBtn.Text = "📌 Center Locked Successfully!"
-        task.delay(1.5, function() SetBaseBtn.Text = "📌 Set Center Safe Zone" end)
-    end
-end)
-
--- Toggle Auto Steal
-local ToggleFrame = Instance.new("Frame", MainFrame)
-ToggleFrame.Size = UDim2.new(1, -30, 0, 40)
-ToggleFrame.BackgroundColor3 = colors.card
-Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 8)
-
-local ToggleLabel = Instance.new("TextLabel", ToggleFrame)
-ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
-ToggleLabel.Position = UDim2.new(0, 12, 0, 0)
-ToggleLabel.BackgroundTransparency = 1
-ToggleLabel.Text = "Auto Steal (Instant Return)"
-ToggleLabel.TextColor3 = colors.text
-ToggleLabel.Font = Enum.Font.GothamSemibold
-ToggleLabel.TextSize = 11
-ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local ToggleBtn = Instance.new("TextButton", ToggleFrame)
-ToggleBtn.Size = UDim2.new(0, 36, 0, 18)
-ToggleBtn.Position = UDim2.new(1, -48, 0.5, -9)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ToggleBtn.Text = ""
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-
--- Checkbox Header
-local CheckboxHeader = Instance.new("TextLabel", MainFrame)
-CheckboxHeader.Size = UDim2.new(1, -30, 0, 24)
-CheckboxHeader.BackgroundTransparency = 1
-CheckboxHeader.Text = "🗺 Select Biomes & Egg Types:"
-CheckboxHeader.TextColor3 = colors.yellow
-CheckboxHeader.Font = Enum.Font.GothamBold
-CheckboxHeader.TextSize = 11
-CheckboxHeader.TextXAlignment = Enum.TextXAlignment.Left
-
-local biomesList = {
-    "All", "Forest", "Lake", "Desert", "Jungle", "Snow", "Volcano", 
-    "Abyss Ocean", "Prehistoric", "Cosmic", "Cherry Blossom", 
-    "Titan Temple", "Brainrot Eggs", "Monster Eggs", "Rift Eggs"
-}
-
-for _, biomeName in ipairs(biomesList) do
-    local cbRow = Instance.new("Frame", MainFrame)
-    cbRow.Size = UDim2.new(1, -30, 0, 30)
-    cbRow.BackgroundColor3 = colors.card
-    Instance.new("UICorner", cbRow).CornerRadius = UDim.new(0, 6)
-
-    local lbl = Instance.new("TextLabel", cbRow)
-    lbl.Size = UDim2.new(0.7, 0, 1, 0)
-    lbl.Position = UDim2.new(0, 10, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = "• " .. biomeName
-    lbl.TextColor3 = colors.text
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 11
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-
-    local box = Instance.new("TextButton", cbRow)
-    box.Size = UDim2.new(0, 20, 0, 20)
-    box.Position = UDim2.new(1, -28, 0.5, -10)
-    box.BackgroundColor3 = (Config.SelectedBiomes[biomeName] and colors.green or Color3.fromRGB(50, 50, 50))
-    box.Text = Config.SelectedBiomes[biomeName] and "✓" or ""
-    box.TextColor3 = Color3.fromRGB(255, 255, 255)
-    box.Font = Enum.Font.GothamBold
-    box.TextSize = 11
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
-
-    box.MouseButton1Click:Connect(function()
-        Config.SelectedBiomes[biomeName] = not Config.SelectedBiomes[biomeName]
-        box.BackgroundColor3 = Config.SelectedBiomes[biomeName] and colors.green or Color3.fromRGB(50, 50, 50)
-        box.Text = Config.SelectedBiomes[biomeName] and "✓" or ""
-    end)
-end
-
--- Noclip Setup
-local noclipConn = nil
-local function setNoclip(state)
-    pcall(function()
-        if state then
-            if not noclipConn then
-                noclipConn = RunService.Stepped:Connect(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                        end
-                        for _, p in ipairs(char:GetDescendants()) do
-                            if p:IsA("BasePart") then p.CanCollide = false end
-                        end
-                    end
-                end)
+local function checkCurrentServerSpeed()
+    local maxAllowedSpeed = 100 * 1e6
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            local leaderstats = p:FindFirstChild("leaderstats")
+            if leaderstats then
+                local speedStat = leaderstats:FindFirstChild("Speed")
+                if speedStat and parseSpeedValue(speedStat.Value) >= maxAllowedSpeed then
+                    return false
+                end
             end
+        end
+    end
+    return true
+end
+
+local function disableCollisionForModel(model)
+    if not model then return end
+    if model:IsA("BasePart") then
+        model.CanCollide = false
+    end
+    for _, child in ipairs(model:GetDescendants()) do
+        if child:IsA("BasePart") then
+            child.CanCollide = false
+        end
+    end
+end
+
+--========================================================
+-- 1. SPEED ENGINE
+--========================================================
+
+RunService.Heartbeat:Connect(function()
+    if not speedEnabled then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if isProcessingEgg then
+            hum.WalkSpeed = math.min(lowSpeedVal, 60)
         else
-            if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
-            local char = LocalPlayer.Character
-            if char then
-                for _, p in ipairs(char:GetDescendants()) do
-                    if p:IsA("BasePart") then p.CanCollide = true end
-                end
-            end
+            hum.WalkSpeed = isHighSpeedMode and highSpeedVal or lowSpeedVal
         end
-    end)
-end
-
-local function flyToStrictTarget(targetCF)
-    pcall(function()
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-        local root = char.HumanoidRootPart
-        local targetPos = targetCF.Position + Vector3.new(0, 3, 0)
-        
-        if savedBaseCFrame then
-            local basePos = savedBaseCFrame.Position
-            local offset = targetPos - basePos
-            if offset.Magnitude > Config.MaxFlyRadius then
-                offset = offset.Unit * Config.MaxFlyRadius
-                targetPos = basePos + offset
-            end
-        end
-        
-        local currentPos = root.Position
-        local distance = (currentPos - targetPos).Magnitude
-        local speed = math.clamp(Config.FlightSpeed, 10, 1000)
-        
-        local timeTaken = distance / speed
-        if timeTaken < 0.03 then timeTaken = 0.03 end
-        local tween = TweenService:Create(root, TweenInfo.new(timeTaken, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
-        tween:Play()
-        tween.Completed:Wait()
-    end)
-end
-
--- 🔍 ពិនិត្យមើលថាតើមានសញ្ញា Drop ឬ កាន់ពងរួចរាល់ហើយឬยัง
-local function hasDropAction()
-    local hasDrop = false
-    pcall(function()
-        for _, v in ipairs(Workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") then
-                local action = v.ActionText:lower()
-                if action:match("drop") or action:match("^drop$") then
-                    hasDrop = true
-                    break
-                end
-            end
-        end
-        local char = LocalPlayer.Character
-        if char then
-            for _, item in ipairs(char:GetChildren()) do
-                if item:IsA("Tool") and (item.Name:lower():match("drop") or item.Name:lower():match("egg")) then
-                    hasDrop = true
-                end
-            end
-        end
-    end)
-    return hasDrop
-end
-
-local connection = nil
-local loopTask = nil
-local failedEggs = {}
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    Config.AutoSteal = not Config.AutoSteal
-    ToggleBtn.BackgroundColor3 = Config.AutoSteal and colors.green or Color3.fromRGB(50, 50, 50)
-    setNoclip(Config.AutoSteal)
-
-    if Config.AutoSteal then
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") and not savedBaseCFrame then
-            savedBaseCFrame = char.HumanoidRootPart.CFrame
-        end
-
-        connection = Workspace.DescendantAdded:Connect(function(v)
-            if Config.AutoSteal and v:IsA("ProximityPrompt") then
-                v.HoldDuration = 0
-                v.RequiresLineOfSight = false
-            end
-        end)
-
-        loopTask = task.spawn(function()
-            while Config.AutoSteal do
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        local root = char.HumanoidRootPart
-                        if not savedBaseCFrame then savedBaseCFrame = root.CFrame end
-
-                        local availableEggs = {}
-
-                        for _, v in ipairs(Workspace:GetDescendants()) do
-                            if v:IsA("ProximityPrompt") and not failedEggs[v] then
-                                local action = v.ActionText:lower()
-                                local objText = v.ObjectText:lower()
-                                if action:match("steal") or action:match("egg") or objText:match("egg") then
-                                    v.HoldDuration = 0
-                                    v.RequiresLineOfSight = false
-
-                                    local parentPart = v.Parent
-                                    if parentPart and parentPart:IsA("BasePart") then
-                                        local distFromBase = (parentPart.Position - savedBaseCFrame.Position).Magnitude
-                                        if distFromBase <= Config.MaxFlyRadius then
-                                            local pName = (parentPart.Parent and parentPart.Parent.Name or "")
-                                            local fullText = (v.ObjectText .. " " .. v.ActionText .. " " .. parentPart.Name .. " " .. pName):lower()
-
-                                            local foundMoneyValue = 0
-                                            local foundRarityScore = 1
-
-                                            for _, desc in ipairs(parentPart:GetDescendants()) do
-                                                if desc:IsA("TextLabel") then
-                                                    local labelText = desc.Text
-                                                    local parsed = parseMoneyValue(labelText)
-                                                    if parsed > foundMoneyValue then
-                                                        foundMoneyValue = parsed
-                                                    end
-                                                end
-                                            end
-
-                                            for rName, score in pairs(rarityWeights) do
-                                                if fullText:match(rName) then
-                                                    foundRarityScore = math.max(foundRarityScore, score)
-                                                end
-                                            end
-
-                                            local shouldSteal = false
-                                            if Config.SelectedBiomes["All"] then
-                                                shouldSteal = true
-                                            else
-                                                for biomeName, isSelected in pairs(Config.SelectedBiomes) do
-                                                    if isSelected and biomeName ~= "All" then
-                                                        if fullText:match(biomeName:lower()) then
-                                                            shouldSteal = true
-                                                            break
-                                                        end
-                                                    end
-                                                end
-                                            end
-
-                                            if shouldSteal then
-                                                local finalScore = (foundMoneyValue > 0) and foundMoneyValue or (foundRarityScore * 1e5)
-
-                                                table.insert(availableEggs, {
-                                                    prompt = v,
-                                                    part = parentPart,
-                                                    score = finalScore,
-                                                    dist = distFromBase
-                                                })
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-
-                        table.sort(availableEggs, function(a, b)
-                            if a.score ~= b.score then
-                                return a.score > b.score
-                            else
-                                return a.dist < b.dist
-                            end
-                        end)
-
-                        if #availableEggs > 0 then
-                            for _, eggData in ipairs(availableEggs) do
-                                if not Config.AutoSteal then break end
-                                if eggData.prompt and eggData.prompt.Parent and eggData.part then
-                                    -- 1. ហោះទៅកន្លែងពងភ្លាមៗ
-                                    flyToStrictTarget(eggData.part.CFrame)
-
-                                    -- 2. ចុចយកពង និងរង់ចាំការឆ្លើយតប (Instant Response Loop)
-                                    local startTime = tick()
-                                    local successSteal = false
-                                    
-                                    while tick() - startTime < 1.2 do
-                                        if not Config.AutoSteal then break end
-                                        if eggData.prompt and eggData.prompt.Parent then
-                                            fireproximityprompt(eggData.prompt)
-                                        end
-                                        
-                                        -- 💡 ពេលដែលវា Steal បានសម្រេច វានឹងឆ្លើយតប (Return True) ភ្លាម
-                                        if hasDropAction() then
-                                            successSteal = true
-                                            break
-                                        end
-                                        task.wait(0.01)
-                                    end
-
-                                    -- 3. ប្រសិនបើ Steal បានសម្រេច ឆ្លើយតបជាសញ្ញាឱ្យហោះត្រឡប់មក Safe Zone វិញភ្លាមៗ
-                                    if successSteal and savedBaseCFrame then
-                                        flyToStrictTarget(savedBaseCFrame)
-                                        
-                                        -- 4. រង់ចាំបន្តិចរហូតទាល់តែទម្លាក់ពងចុះរួច សឹមទៅបន្ត
-                                        local dropWaitTime = tick()
-                                        while hasDropAction() and (tick() - dropWaitTime < 1.5) do
-                                            if not Config.AutoSteal then break end
-                                            task.wait(0.02)
-                                        end
-                                    else
-                                        -- បើយកអត់បាន ដាក់ចូល Failed List ដើម្បីរំលងទៅកន្លែងอื่นភ្លាម
-                                        failedEggs[eggData.prompt] = true
-                                        task.delay(8, function() failedEggs[eggData.prompt] = nil end)
-                                    end
-                                    break 
-                                end
-                            end
-                        end
-                    end
-                end)
-                task.wait(0.03)
-            end
-        end)
-    else
-        if connection then connection:Disconnect() end
-        if loopTask then task.cancel(loopTask) end
     end
 end)
 
-print("⚡ Instant Response Stealer Loaded Successfully!")
+--========================================================
+-- 2. ESP PLAYERS SYSTEM
+--========================================================
+
+local function createESP(targetPlayer)
+    if targetPlayer == player then return end
+    
+    local function applyHighlight(char)
+        if not char then return end
+        
+        local highlight = char:FindFirstChild("ESPHighlight")
+        if not highlight then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "ESPHighlight"
+            highlight.FillColor = Color3.fromRGB(255, 50, 50)
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = char
+        end
+        highlight.Enabled = espEnabled
+
+        local head = char:WaitForChild("Head", 3)
+        if head and not head:FindFirstChild("ESPBillboard") then
+            local bb = Instance.new("BillboardGui")
+            bb.Name = "ESPBillboard"
+            bb.Size = UDim2.new(0, 100, 0, 30)
+            bb.StudsOffset = Vector3.new(0, 3, 0)
+            bb.AlwaysOnTop = true
+            bb.Parent = head
+
+            local txt = Instance.new("TextLabel")
+            txt.Size = UDim2.new(1, 0, 1, 0)
+            txt.BackgroundTransparency = 1
+            txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+            txt.TextStrokeTransparency = 0
+            txt.Font = Enum.Font.GothamBold
+            txt.TextSize = 11
+            txt.Text = targetPlayer.Name
+            txt.Parent = bb
+
+            task.spawn(function()
+                while bb and bb.Parent and char and char:FindFirstChild("HumanoidRootPart") do
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        local dist = (player.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                        txt.Text = targetPlayer.Name .. " [" .. math.floor(dist) .. "m]"
+                    end
+                    bb.Enabled = espEnabled
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+
+    if targetPlayer.Character then
+        applyHighlight(targetPlayer.Character)
+    end
+    targetPlayer.CharacterAdded:Connect(applyHighlight)
+end
+
+local function toggleESP(state)
+    espEnabled = state
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            createESP(p)
+            if p.Character then
+                local hl = p.Character:FindFirstChild("ESPHighlight")
+                if hl then hl.Enabled = espEnabled end
+            end
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    if espEnabled then
+        p.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            createESP(p)
+        end)
+    end
+end)
+
+--========================================================
+-- 3. AUTO EGG & TITAN TEMPLE LOGIC
+--========================================================
+
+local function findGlowingEgg()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Highlight") or obj:IsA("SelectionBox") or obj:IsA("ParticleEmitter") then
+            local targetPart = obj.Parent
+            if targetPart and targetPart:IsA("BasePart") then
+                return targetPart
+            elseif targetPart and targetPart:IsA("Model") then
+                return targetPart.PrimaryPart or targetPart:FindFirstChildWhichIsA("BasePart")
+            end
+        end
+    end
+    return nil
+end
+
+task.spawn(function()
+    while task.wait(0.15) do
+        if autoEggEnabled and not isProcessingEgg then
+            local glowingEgg = findGlowingEgg()
+            local char = player.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            
+            if glowingEgg and root and hum then
+                isProcessingEgg = true
+                local targetPos = glowingEgg.Position
+                hum:MoveTo(targetPos)
+                
+                local moveTimeout = 0
+                repeat
+                    task.wait(0.05)
+                    moveTimeout = moveTimeout + 0.05
+                until (root.Position - targetPos).Magnitude <= 8 or moveTimeout >= 4 or not autoEggEnabled
+
+                if (root.Position - targetPos).Magnitude <= 10 and autoEggEnabled then
+                    disableCollisionForModel(glowingEgg.Parent)
+                    disableCollisionForModel(glowingEgg)
+                    hum:MoveTo(root.Position)
+                    task.wait(0.05)
+                    
+                    local prompt = glowingEgg:FindFirstChildOfClass("ProximityPrompt") 
+                        or glowingEgg.Parent:FindFirstChildOfClass("ProximityPrompt")
+                        or (glowingEgg.Parent and glowingEgg.Parent:FindFirstChildOfClass("ProximityPrompt"))
+                    
+                    if prompt then
+                        if fireproximityprompt then
+                            fireproximityprompt(prompt)
+                        else
+                            prompt:InputHoldBegin()
+                            task.wait(prompt.HoldDuration or 0.2)
+                            prompt:InputHoldEnd()
+                        end
+                    end
+                    
+                    task.wait(0.15)
+                    local spawnLocation = Workspace:FindFirstChild("SpawnLocation") or Workspace:FindFirstChild("Spawns")
+                    local targetCFrame = nil
+
+                    if spawnLocation then
+                        local spawnPart = spawnLocation:IsA("BasePart") and spawnLocation or spawnLocation:FindFirstChildWhichIsA("BasePart")
+                        if spawnPart then targetCFrame = spawnPart.CFrame + Vector3.new(0, 3, 0) end
+                    elseif savedCoords.pos then
+                        targetCFrame = savedCoords.pos
+                    end
+
+                    if targetCFrame then
+                        root.CFrame = targetCFrame
+                        task.wait(0.1)
+                        root.CFrame = targetCFrame
+                    end
+                end
+                task.wait(0.2)
+                isProcessingEgg = false
+            end
+        end
+    end
+end)
+
+-- Titan Temple Auto Steal Loop
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoStealTitan then
+            pcall(function()
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if obj:IsA("Model") and (obj.Name:find("Titan") or obj.Name:find("Monster")) then
+                        if obj:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.CFrame = obj.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Hungry Frog Event Loop (Infected/Parasite Eggs)
+task.spawn(function()
+    while task.wait(1) do
+        if autoFeedFrog then
+            pcall(function()
+                for _, egg in pairs(Workspace:GetDescendants()) do
+                    if egg.Name:find("Infected") or egg.Name:find("Parasite") then
+                        if egg:FindFirstChild("PrimaryPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                            player.Character.HumanoidRootPart.CFrame = egg.PrimaryPart.CFrame
+                            task.wait(0.3)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- God Mode / Guard Freeze Loop
+task.spawn(function()
+    while task.wait(0.5) do
+        if godModeEnabled then
+            pcall(function()
+                local char = player.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid.Health = char.Humanoid.MaxHealth
+                end
+                for _, npc in pairs(Workspace:GetChildren()) do
+                    if npc.Name:find("Gorilla") or npc.Name:find("Guard") then
+                        if npc:FindFirstChild("HumanoidRootPart") then
+                            npc.HumanoidRootPart.Anchored = true
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+--========================================================
+-- 4. FLY LOGIC
+--========================================================
+
+local function startFlying()
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+
+    hum.PlatformStand = true
+
+    flyBodyVel = Instance.new("BodyVelocity")
+    flyBodyVel.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    flyBodyVel.Velocity = Vector3.zero
+    flyBodyVel.Parent = root
+
+    flyBodyGyro = Instance.new("BodyGyro")
+    flyBodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    flyBodyGyro.CFrame = root.CFrame
+    flyBodyGyro.Parent = root
+
+    task.spawn(function()
+        while flying and player.Character and root and hum do
+            local camCFrame = Workspace.CurrentCamera.CFrame
+            local moveDir = Vector3.zero
+
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camCFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camCFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camCFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+
+            if moveDir.Magnitude > 0 then
+                flyBodyVel.Velocity = moveDir.Unit * flySpeed
+            else
+                flyBodyVel.Velocity = Vector3.zero
+            end
+
+            flyBodyGyro.CFrame = camCFrame
+            task.wait()
+        end
+
+        if flyBodyVel then flyBodyVel:Destroy() end
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+        if hum then hum.PlatformStand = false end
+    end)
+end
+
+local function stopFlying()
+    flying = false
+    if player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+    end
+end
+
+--========================================================
+-- 5. GUI CREATION (5 TABS: SPEED, FLY, ESP, SERVERS, TITAN)
+--========================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "StealAnEggHub"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame")
+main.Size = UDim2.fromOffset(420, 330)
+main.Position = UDim2.fromOffset(100, 100)
+main.BackgroundColor3 = Color3.fromRGB(18, 19, 26)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(60, 65, 85)
+stroke.Thickness = 1.5
+stroke.Parent = main
+
+-- Close Button (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.fromOffset(26, 26)
+closeBtn.Position = UDim2.new(1, -32, 0, 6)
+closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 13
+closeBtn.ZIndex = 10
+closeBtn.Parent = main
+
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+closeBtn.MouseButton1Click:Connect(function()
+    stopFlying()
+    speedEnabled = false
+    autoEggEnabled = false
+    autoStealTitan = false
+    autoFeedFrog = false
+    godModeEnabled = false
+    toggleESP(false)
+    gui:Destroy()
+end)
+
+-- Tab Bar (5 Tabs)
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, -45, 0, 35)
+tabBar.Position = UDim2.fromOffset(8, 8)
+tabBar.BackgroundColor3 = Color3.fromRGB(25, 27, 36)
+tabBar.Parent = main
+Instance.new("UICorner", tabBar).CornerRadius = UDim.new(0, 8)
+
+local tabs, pages = {}, {}
+
+local function createTab(name, pos, index)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.2, -2, 1, -4)
+    btn.Position = pos
+    btn.BackgroundColor3 = index == 1 and Color3.fromRGB(65, 105, 225) or Color3.fromRGB(35, 37, 48)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 8
+    btn.Parent = tabBar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local page = Instance.new("Frame")
+    page.Size = UDim2.new(1, -20, 1, -60)
+    page.Position = UDim2.fromOffset(10, 50)
+    page.BackgroundTransparency = 1
+    page.Visible = (index == 1)
+    page.Parent = main
+    
+    tabs[index] = btn
+    pages[index] = page
+    
+    btn.MouseButton1Click:Connect(function()
+        for i, pageObj in ipairs(pages) do
+            pageObj.Visible = (i == index)
+            tabs[i].BackgroundColor3 = (i == index) and Color3.fromRGB(65, 105, 225) or Color3.fromRGB(35, 37, 48)
+        end
+    end)
+    
+    return page
+end
+
+local speedPage = createTab("⚡ SPEED", UDim2.new(0, 2, 0, 2), 1)
+local flyPage   = createTab("🕊️ FLY", UDim2.new(0.2, 0, 0, 2), 2)
+local espPage   = createTab("👁️ ESP", UDim2.new(0.4, -2, 0, 2), 3)
+local tpPage    = createTab("🌀 SERVERS", UDim2.new(0.6, -4, 0, 2), 4)
+local titanPage = createTab("🦖 TITAN", UDim2.new(0.8, -6, 0, 2), 5)
+
+-- Dragging Logic
+local dragging, dragStart, startPos
+main.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = main.Position
+    end
+end)
+main.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+--========================================================
+-- TAB 1: SPEED & AUTO EGG
+--========================================================
+
+local walkToggle = Instance.new("TextButton")
+walkToggle.Size = UDim2.new(0.5, -5, 0, 32)
+walkToggle.Position = UDim2.fromOffset(0, 2)
+walkToggle.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+walkToggle.Text = "SPEED: OFF"
+walkToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+walkToggle.Font = Enum.Font.GothamBold
+walkToggle.TextSize = 11
+walkToggle.Parent = speedPage
+Instance.new("UICorner", walkToggle).CornerRadius = UDim.new(0, 8)
+
+local switchSpeedBtn = Instance.new("TextButton")
+switchSpeedBtn.Size = UDim2.new(0.5, -5, 0, 32)
+switchSpeedBtn.Position = UDim2.new(0.5, 5, 0, 2)
+switchSpeedBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 200)
+switchSpeedBtn.Text = "🔄 MODE: LOW (50)"
+switchSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+switchSpeedBtn.Font = Enum.Font.GothamBold
+switchSpeedBtn.TextSize = 9
+switchSpeedBtn.Parent = speedPage
+Instance.new("UICorner", switchSpeedBtn).CornerRadius = UDim.new(0, 8)
+
+local highSpeedInput = Instance.new("TextBox")
+highSpeedInput.Size = UDim2.new(0.5, -5, 0, 32)
+highSpeedInput.Position = UDim2.fromOffset(0, 38)
+highSpeedInput.BackgroundColor3 = Color3.fromRGB(32, 34, 45)
+highSpeedInput.Text = "240"
+highSpeedInput.PlaceholderText = "High Speed"
+highSpeedInput.TextColor3 = Color3.fromRGB(255, 80, 80)
+highSpeedInput.Font = Enum.Font.GothamBold
+highSpeedInput.TextSize = 11
+highSpeedInput.ClearTextOnFocus = false
+highSpeedInput.Parent = speedPage
+Instance.new("UICorner", highSpeedInput).CornerRadius = UDim.new(0, 8)
+
+local lowSpeedInput = Instance.new("TextBox")
+lowSpeedInput.Size = UDim2.new(0.5, -5, 0, 32)
+lowSpeedInput.Position = UDim2.new(0.5, 5, 0, 38)
+lowSpeedInput.BackgroundColor3 = Color3.fromRGB(32, 34, 45)
+lowSpeedInput.Text = "50"
+lowSpeedInput.PlaceholderText = "Low Speed"
+lowSpeedInput.TextColor3 = Color3.fromRGB(100, 255, 100)
+lowSpeedInput.Font = Enum.Font.GothamBold
+lowSpeedInput.TextSize = 11
+lowSpeedInput.ClearTextOnFocus = false
+lowSpeedInput.Parent = speedPage
+Instance.new("UICorner", lowSpeedInput).CornerRadius = UDim.new(0, 8)
+
+local autoEggBtn = Instance.new("TextButton")
+autoEggBtn.Size = UDim2.new(1, 0, 0, 38)
+autoEggBtn.Position = UDim2.fromOffset(0, 75)
+autoEggBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 160)
+autoEggBtn.Text = "🥚 SAFE AUTO EGG: OFF"
+autoEggBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoEggBtn.Font = Enum.Font.GothamBold
+autoEggBtn.TextSize = 10
+autoEggBtn.Parent = speedPage
+Instance.new("UICorner", autoEggBtn).CornerRadius = UDim.new(0, 8)
+
+walkToggle.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    walkToggle.Text = speedEnabled and "SPEED: ON" or "SPEED: OFF"
+    walkToggle.BackgroundColor3 = speedEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(45, 50, 65)
+    
+    if not speedEnabled and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
+    end
+end)
+
+switchSpeedBtn.MouseButton1Click:Connect(function()
+    isHighSpeedMode = not isHighSpeedMode
+    if isHighSpeedMode then
+        switchSpeedBtn.Text = "🔄 MODE: HIGH (" .. highSpeedVal .. ")"
+        switchSpeedBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 20)
+    else
+        switchSpeedBtn.Text = "🔄 MODE: LOW (" .. lowSpeedVal .. ")"
+        switchSpeedBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 200)
+    end
+end)
+
+highSpeedInput.FocusLost:Connect(function()
+    local num = tonumber(highSpeedInput.Text)
+    highSpeedVal = num and math.floor(num) or 240
+    highSpeedInput.Text = tostring(highSpeedVal)
+    if isHighSpeedMode then switchSpeedBtn.Text = "🔄 MODE: HIGH (" .. highSpeedVal .. ")" end
+end)
+
+lowSpeedInput.FocusLost:Connect(function()
+    local num = tonumber(lowSpeedInput.Text)
+    lowSpeedVal = num and math.floor(num) or 50
+    lowSpeedInput.Text = tostring(lowSpeedVal)
+    if not isHighSpeedMode then switchSpeedBtn.Text = "🔄 MODE: LOW (" .. lowSpeedVal .. ")" end
+end)
+
+autoEggBtn.MouseButton1Click:Connect(function()
+    autoEggEnabled = not autoEggEnabled
+    autoEggBtn.Text = autoEggEnabled and "🥚 SAFE AUTO EGG: ON" or "🥚 SAFE AUTO EGG: OFF"
+    autoEggBtn.BackgroundColor3 = autoEggEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(120, 40, 160)
+end)
+
+--========================================================
+-- TAB 2: FLY
+--========================================================
+
+local flyToggle = Instance.new("TextButton")
+flyToggle.Size = UDim2.new(0.6, -5, 0, 45)
+flyToggle.Position = UDim2.fromOffset(0, 25)
+flyToggle.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+flyToggle.Text = "FLY: OFF"
+flyToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyToggle.Font = Enum.Font.GothamBold
+flyToggle.TextSize = 13
+flyToggle.Parent = flyPage
+Instance.new("UICorner", flyToggle).CornerRadius = UDim.new(0, 8)
+
+local flyInput = Instance.new("TextBox")
+flyInput.Size = UDim2.new(0.4, -5, 0, 45)
+flyInput.Position = UDim2.new(0.6, 5, 0, 25)
+flyInput.BackgroundColor3 = Color3.fromRGB(32, 34, 45)
+flyInput.Text = "80"
+flyInput.PlaceholderText = "Fly Speed"
+flyInput.TextColor3 = Color3.fromRGB(0, 220, 255)
+flyInput.Font = Enum.Font.GothamBold
+flyInput.TextSize = 14
+flyInput.ClearTextOnFocus = false
+flyInput.Parent = flyPage
+Instance.new("UICorner", flyInput).CornerRadius = UDim.new(0, 8)
+
+flyToggle.MouseButton1Click:Connect(function()
+    flying = not flying
+    if flying then startFlying() else stopFlying() end
+    flyToggle.Text = flying and "FLY: ON" or "FLY: OFF"
+    flyToggle.BackgroundColor3 = flying and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(45, 50, 65)
+end)
+
+flyInput.FocusLost:Connect(function()
+    local num = tonumber(flyInput.Text)
+    flySpeed = num or 80
+    flyInput.Text = tostring(flySpeed)
+end)
+
+--========================================================
+-- TAB 3: ESP PLAYERS
+--========================================================
+
+local espToggle = Instance.new("TextButton")
+espToggle.Size = UDim2.new(1, 0, 0, 45)
+espToggle.Position = UDim2.fromOffset(0, 25)
+espToggle.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+espToggle.Text = "👁️ ESP PLAYERS: OFF"
+espToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+espToggle.Font = Enum.Font.GothamBold
+espToggle.TextSize = 12
+espToggle.Parent = espPage
+Instance.new("UICorner", espToggle).CornerRadius = UDim.new(0, 8)
+
+espToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    toggleESP(espEnabled)
+    espToggle.Text = espEnabled and "👁️ ESP PLAYERS: ON" or "👁️ ESP PLAYERS: OFF"
+    espToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(45, 50, 65)
+end)
+
+--========================================================
+-- TAB 4: TELEPORT / SERVERS
+--========================================================
+
+local btnSavePos = Instance.new("TextButton")
+btnSavePos.Size = UDim2.new(0.5, -5, 0, 32)
+btnSavePos.Position = UDim2.fromOffset(0, 2)
+btnSavePos.BackgroundColor3 = Color3.fromRGB(40, 110, 180)
+btnSavePos.Text = "📍 SAVE POS"
+btnSavePos.TextColor3 = Color3.fromRGB(255, 255, 255)
+btnSavePos.Font = Enum.Font.GothamBold
+btnSavePos.TextSize = 11
+btnSavePos.Parent = tpPage
+Instance.new("UICorner", btnSavePos).CornerRadius = UDim.new(0, 8)
+
+local btnTpPos = Instance.new("TextButton")
+btnTpPos.Size = UDim2.new(0.5, -5, 0, 32)
+btnTpPos.Position = UDim2.new(0.5, 5, 0, 2)
+btnTpPos.BackgroundColor3 = Color3.fromRGB(180, 110, 40)
+btnTpPos.Text = "🌀 TP SAVED POS"
+btnTpPos.TextColor3 = Color3.fromRGB(255, 255, 255)
+btnTpPos.Font = Enum.Font.GothamBold
+btnTpPos.TextSize = 11
+btnTpPos.Parent = tpPage
+Instance.new("UICorner", btnTpPos).CornerRadius = UDim.new(0, 8)
+
+local btn3Players = Instance.new("TextButton")
+btn3Players.Size = UDim2.new(1, 0, 0, 32)
+btn3Players.Position = UDim2.fromOffset(0, 40)
+btn3Players.BackgroundColor3 = Color3.fromRGB(130, 50, 160)
+btn3Players.Text = "👥 TP TO 3-PLAYER SERVER"
+btn3Players.TextColor3 = Color3.fromRGB(255, 255, 255)
+btn3Players.Font = Enum.Font.GothamBold
+btn3Players.TextSize = 11
+btn3Players.Parent = tpPage
+Instance.new("UICorner", btn3Players).CornerRadius = UDim.new(0, 8)
+
+local btnLowSpeed = Instance.new("TextButton")
+btnLowSpeed.Size = UDim2.new(1, 0, 0, 32)
+btnLowSpeed.Position = UDim2.fromOffset(0, 78)
+btnLowSpeed.BackgroundColor3 = Color3.fromRGB(200, 100, 30)
+btnLowSpeed.Text = "🎯 FIND SERVER (SPEED < 100M)"
+btnLowSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
+btnLowSpeed.Font = Enum.Font.GothamBold
+btnLowSpeed.TextSize = 10
+btnLowSpeed.Parent = tpPage
+Instance.new("UICorner", btnLowSpeed).CornerRadius = UDim.new(0, 8)
+
+local tpStatus = Instance.new("TextLabel")
+tpStatus.Size = UDim2.new(1, 0, 0, 25)
+tpStatus.Position = UDim2.fromOffset(0, 120)
+tpStatus.BackgroundColor3 = Color3.fromRGB(26, 28, 38)
+tpStatus.Text = "Ready..."
+tpStatus.TextColor3 = Color3.fromRGB(170, 175, 190)
+tpStatus.Font = Enum.Font.Gotham
+tpStatus.TextSize = 10
+tpStatus.Parent = tpPage
+Instance.new("UICorner", tpStatus).CornerRadius = UDim.new(0, 6)
+
+btnSavePos.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        savedCoords.pos = char.HumanoidRootPart.CFrame
+        tpStatus.Text = "✅ Position Saved!"
+        tpStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+    end
+end)
+
+btnTpPos.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if savedCoords.pos and char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = savedCoords.pos
+        tpStatus.Text = "⚡ Teleported!"
+        tpStatus.TextColor3 = Color3.fromRGB(100, 220, 255)
+    else
+        tpStatus.Text = "❌ Save a position first!"
+        tpStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end)
+
+btn3Players.MouseButton1Click:Connect(function()
+    teleportTo3PlayerServer(tpStatus)
+end)
+
+btnLowSpeed.MouseButton1Click:Connect(function()
+    findLowSpeedServer(tpStatus)
+end)
+
+--========================================================
+-- TAB 5: TITAN TEMPLE & HUNGRY FROG EVENT
+--========================================================
+
+local autoTitanBtn = Instance.new("TextButton")
+autoTitanBtn.Size = UDim2.new(1, 0, 0, 32)
+autoTitanBtn.Position = UDim2.fromOffset(0, 2)
+autoTitanBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 100)
+autoTitanBtn.Text = "🦖 AUTO TITAN TEMPLE: OFF"
+autoTitanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoTitanBtn.Font = Enum.Font.GothamBold
+autoTitanBtn.TextSize = 10
+autoTitanBtn.Parent = titanPage
+Instance.new("UICorner", autoTitanBtn).CornerRadius = UDim.new(0, 8)
+
+local autoFrogBtn = Instance.new("TextButton")
+autoFrogBtn.Size = UDim2.new(1, 0, 0, 32)
+autoFrogBtn.Position = UDim2.fromOffset(0, 38)
+autoFrogBtn.BackgroundColor3 = Color3.fromRGB(60, 140, 60)
+autoFrogBtn.Text = "🐸 AUTO INFECTED EGGS (FROG): OFF"
+autoFrogBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoFrogBtn.Font = Enum.Font.GothamBold
+autoFrogBtn.TextSize = 10
+autoFrogBtn.Parent = titanPage
+Instance.new("UICorner", autoFrogBtn).CornerRadius = UDim.new(0, 8)
+
+local godModeBtn = Instance.new("TextButton")
+godModeBtn.Size = UDim2.new(1, 0, 0, 32)
+godModeBtn.Position = UDim2.fromOffset(0, 74)
+godModeBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 50)
+godModeBtn.Text = "🛡️ FREEZE GUARDS / GORILLA KING: OFF"
+godModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+godModeBtn.Font = Enum.Font.GothamBold
+godModeBtn.TextSize = 9
+godModeBtn.Parent = titanPage
+Instance.new("UICorner", godModeBtn).CornerRadius = UDim.new(0, 8)
+
+autoTitanBtn.MouseButton1Click:Connect(function()
+    autoStealTitan = not autoStealTitan
+    autoTitanBtn.Text = autoStealTitan and "🦖 AUTO TITAN TEMPLE: ON" or "🦖 AUTO TITAN TEMPLE: OFF"
+    autoTitanBtn.BackgroundColor3 = autoStealTitan and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(150, 50, 100)
+end)
+
+autoFrogBtn.MouseButton1Click:Connect(function()
+    autoFeedFrog = not autoFeedFrog
+    autoFrogBtn.Text = autoFeedFrog and "🐸 AUTO INFECTED EGGS (FROG): ON" or "🐸 AUTO INFECTED EGGS (FROG): OFF"
+    autoFrogBtn.BackgroundColor3 = autoFeedFrog and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(60, 140, 60)
+end)
+
+godModeBtn.MouseButton1Click:Connect(function()
+    godModeEnabled = not godModeEnabled
+    godModeBtn.Text = godModeEnabled and "🛡️ FREEZE GUARDS / GORILLA KING: ON" or "🛡️ FREEZE GUARDS / GORILLA KING: OFF"
+    godModeBtn.BackgroundColor3 = godModeEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(200, 70, 50)
+end)
