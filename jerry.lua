@@ -1,5 +1,5 @@
 -- ====================================================================================
--- [[ ULTIMATE STEAL AN EGG: UNLOCKED ALL BIOMES & EXPANDED RANGE ]] --
+-- [[ ULTIMATE STEAL AN EGG: SMART STEAL & WAIT FOR DROP ]] --
 -- ====================================================================================
 
 local Players = game:GetService("Players")
@@ -11,12 +11,12 @@ local LocalPlayer = Players.LocalPlayer
 
 local guiParent = gethui and gethui() or CoreGui:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
 
-if guiParent:FindFirstChild("StealAnEggExpandedUI") then
-    guiParent.StealAnEggExpandedUI:Destroy()
+if guiParent:FindFirstChild("StealAnEggSmartUI") then
+    guiParent.StealAnEggSmartUI:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "StealAnEggExpandedUI"
+ScreenGui.Name = "StealAnEggSmartUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = guiParent
 
@@ -49,7 +49,7 @@ MainFrame.BackgroundColor3 = colors.bg
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
-MainFrame.CanvasSize = UDim2.new(0, 0, 0, 950)
+MainFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
 MainFrame.ScrollBarThickness = 4
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 Instance.new("UIStroke", MainFrame).Color = colors.blue
@@ -69,36 +69,36 @@ UIPadding.PaddingTop = UDim.new(0, 12)
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -20, 0, 28)
 Title.BackgroundTransparency = 1
-Title.Text = "⚡ UNLOCKED ALL BIOMES & EXPANDED RANGE"
-Title.TextColor3 = colors.blue
+Title.Text = "🔥 HIGH-TIER & SMART DROP WAIT"
+Title.TextColor3 = colors.yellow
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 10
 
--- Config State
+-- Config State (Default: យកតែតំបន់ល្អៗ មិនយក Forest/Lake ទេ។)
 local Config = {
     AutoSteal = false,
     FlightSpeed = 400,
-    MaxFlyRadius = 3000, -- ពង្រីកចម្ងាយពី 160 ទៅ 3000 ដើម្បីឱ្យដល់តំបន់ឆ្ងាយៗ
+    MaxFlyRadius = 5000, 
     SelectedBiomes = {
-        ["All"] = true,
+        ["All"] = false,
         ["Forest"] = false,
         ["Lake"] = false,
         ["Desert"] = false,
         ["Jungle"] = false,
         ["Snow"] = false,
-        ["Volcano"] = false,
-        ["Abyss Ocean"] = false,
-        ["Prehistoric"] = false,
-        ["Cosmic"] = false,
-        ["Cherry Blossom"] = false,
-        ["Titan Temple"] = false,
-        ["Brainrot Eggs"] = false,
-        ["Monster Eggs"] = false,
-        ["Rift Eggs"] = false
+        ["Volcano"] = true,
+        ["Abyss Ocean"] = true,
+        ["Prehistoric"] = true,
+        ["Cosmic"] = true,
+        ["Cherry Blossom"] = true,
+        ["Titan Temple"] = true,
+        ["Brainrot Eggs"] = true,
+        ["Monster Eggs"] = true,
+        ["Rift Eggs"] = true
     }
 }
 
--- 🏆 តារាងកម្រិតភាពកម្រ (Rarity Tiers)
+-- 🏆 Rarity Tiers
 local rarityWeights = {
     ["divine"] = 10,
     ["eternal"] = 9,
@@ -112,33 +112,26 @@ local rarityWeights = {
     ["common"] = 1
 }
 
--- អនុគមន៍បម្លែងតម្លៃ Money/s
 local function parseMoneyValue(text)
     if not text then return 0 end
     text = text:lower()
     local num = 0
-    
     local val = text:match("(%d+%.?%d*)%s*k")
     if val then num = tonumber(val) * 1e3 end
-    
     val = text:match("(%d+%.?%d*)%s*m")
     if val then num = tonumber(val) * 1e6 end
-    
     val = text:match("(%d+%.?%d*)%s*b")
     if val then num = tonumber(val) * 1e9 end
-    
     val = text:match("(%d+%.?%d*)%s*t")
     if val then num = tonumber(val) * 1e12 end
-    
     if num == 0 then
         local rawNum = text:match("(%d+)")
         if rawNum then num = tonumber(rawNum) end
     end
-    
     return num
 end
 
--- 🚀 Speed TextBox (10 - 1000)
+-- 🚀 Speed TextBox
 local SpeedFrame = Instance.new("Frame", MainFrame)
 SpeedFrame.Size = UDim2.new(1, -30, 0, 38)
 SpeedFrame.BackgroundColor3 = colors.card
@@ -168,16 +161,11 @@ Instance.new("UIStroke", SpeedBox).Color = colors.yellow
 
 SpeedBox.FocusLost:Connect(function()
     local val = tonumber(SpeedBox.Text)
-    if val then
-        val = math.clamp(val, 10, 1000)
-        Config.FlightSpeed = val
-        SpeedBox.Text = tostring(val)
-    else
-        SpeedBox.Text = tostring(Config.FlightSpeed)
-    end
+    if val then Config.FlightSpeed = math.clamp(val, 10, 1000) end
+    SpeedBox.Text = tostring(Config.FlightSpeed)
 end)
 
--- 🌐 Max Fly Radius TextBox (ចម្ងាយហោះទៅតំបន់ផ្សេងៗ)
+-- 🌐 Max Fly Radius TextBox
 local RadiusFrame = Instance.new("Frame", MainFrame)
 RadiusFrame.Size = UDim2.new(1, -30, 0, 38)
 RadiusFrame.BackgroundColor3 = colors.card
@@ -207,15 +195,11 @@ Instance.new("UIStroke", RadiusBox).Color = colors.yellow
 
 RadiusBox.FocusLost:Connect(function()
     local val = tonumber(RadiusBox.Text)
-    if val then
-        Config.MaxFlyRadius = math.clamp(val, 100, 10000)
-        RadiusBox.Text = tostring(Config.MaxFlyRadius)
-    else
-        RadiusBox.Text = tostring(Config.MaxFlyRadius)
-    end
+    if val then Config.MaxFlyRadius = math.clamp(val, 100, 10000) end
+    RadiusBox.Text = tostring(Config.MaxFlyRadius)
 end)
 
--- 📌 Set Safe Zone / Center Position
+-- 📌 Set Safe Zone
 local SetBaseBtn = Instance.new("TextButton", MainFrame)
 SetBaseBtn.Size = UDim2.new(1, -30, 0, 35)
 SetBaseBtn.BackgroundColor3 = colors.card
@@ -232,9 +216,7 @@ SetBaseBtn.MouseButton1Click:Connect(function()
     if char and char:FindFirstChild("HumanoidRootPart") then
         savedBaseCFrame = char.HumanoidRootPart.CFrame
         SetBaseBtn.Text = "📌 Center Locked Successfully!"
-        task.delay(1.5, function()
-            SetBaseBtn.Text = "📌 Set Center Safe Zone"
-        end)
+        task.delay(1.5, function() SetBaseBtn.Text = "📌 Set Center Safe Zone" end)
     end
 end)
 
@@ -248,7 +230,7 @@ local ToggleLabel = Instance.new("TextLabel", ToggleFrame)
 ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
 ToggleLabel.Position = UDim2.new(0, 12, 0, 0)
 ToggleLabel.BackgroundTransparency = 1
-ToggleLabel.Text = "Auto Steal (All Biomes Unlocked)"
+ToggleLabel.Text = "Auto Steal (Smart Drop Wait)"
 ToggleLabel.TextColor3 = colors.text
 ToggleLabel.Font = Enum.Font.GothamSemibold
 ToggleLabel.TextSize = 11
@@ -271,7 +253,6 @@ CheckboxHeader.Font = Enum.Font.GothamBold
 CheckboxHeader.TextSize = 11
 CheckboxHeader.TextXAlignment = Enum.TextXAlignment.Left
 
--- Checkboxes for All Biomes from Guide
 local biomesList = {
     "All", "Forest", "Lake", "Desert", "Jungle", "Snow", "Volcano", 
     "Abyss Ocean", "Prehistoric", "Cosmic", "Cherry Blossom", 
@@ -311,7 +292,7 @@ for _, biomeName in ipairs(biomesList) do
     end)
 end
 
--- Stable Noclip & Anti-Fling Setup
+-- Noclip Setup
 local noclipConn = nil
 local function setNoclip(state)
     pcall(function()
@@ -343,13 +324,11 @@ local function setNoclip(state)
     end)
 end
 
--- 🚀 Strict Bounded Flight Function
 local function flyToStrictTarget(targetCF)
     pcall(function()
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then return end
         local root = char.HumanoidRootPart
-        
         local targetPos = targetCF.Position + Vector3.new(0, 4, 0)
         
         if savedBaseCFrame then
@@ -381,7 +360,7 @@ local function flyToStrictTarget(targetCF)
     end)
 end
 
--- 🔍 ពិនិត្យពាក្យ "Drop" ពេលកាន់ពងលើដៃ
+-- 🔍 ពិនិត្យមើលថាតើកំពុងកាន់ពងនៅលើដៃដែរឬទេ (មានពាក្យ Drop)
 local function hasDropAction()
     local hasDrop = false
     pcall(function()
@@ -397,7 +376,7 @@ local function hasDropAction()
         local char = LocalPlayer.Character
         if char then
             for _, item in ipairs(char:GetChildren()) do
-                if item:IsA("Tool") and item.Name:lower():match("drop") then
+                if item:IsA("Tool") and (item.Name:lower():match("drop") or item.Name:lower():match("egg")) then
                     hasDrop = true
                 end
             end
@@ -437,7 +416,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
 
                         local availableEggs = {}
 
-                        -- 🔬 Scan All Biomes & Distances
                         for _, v in ipairs(Workspace:GetDescendants()) do
                             if v:IsA("ProximityPrompt") then
                                 local action = v.ActionText:lower()
@@ -472,6 +450,8 @@ ToggleBtn.MouseButton1Click:Connect(function()
                                                 end
                                             end
 
+                                            local isLowTier = fullText:match("forest") or fullText:match("lake") or fullText:match("desert") or fullText:match("jungle") or fullText:match("snow")
+
                                             local shouldSteal = false
                                             if Config.SelectedBiomes["All"] then
                                                 shouldSteal = true
@@ -484,6 +464,10 @@ ToggleBtn.MouseButton1Click:Connect(function()
                                                         end
                                                     end
                                                 end
+                                            end
+
+                                            if isLowTier and not Config.SelectedBiomes["Forest"] and not Config.SelectedBiomes["Lake"] then
+                                                shouldSteal = false
                                             end
 
                                             if shouldSteal then
@@ -502,7 +486,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
                             end
                         end
 
-                        -- 📊 តម្រៀបពងតម្លៃខ្ពស់មកមុនគេ ទោះបីនៅឆ្ងាយក៏ដោយ
                         table.sort(availableEggs, function(a, b)
                             if a.score ~= b.score then
                                 return a.score > b.score
@@ -511,21 +494,40 @@ ToggleBtn.MouseButton1Click:Connect(function()
                             end
                         end)
 
-                        -- ⚡ ហោះទៅយកពងតាមលំដាប់តំបន់ទាំងអស់
                         if #availableEggs > 0 then
                             for _, eggData in ipairs(availableEggs) do
                                 if not Config.AutoSteal then break end
                                 if eggData.prompt and eggData.prompt.Parent and eggData.part then
+                                    -- 1. ហោះទៅកន្លែងពង
                                     flyToStrictTarget(eggData.part.CFrame)
-                                    task.wait(0.02)
-                                    fireproximityprompt(eggData.prompt)
                                     task.wait(0.05)
 
-                                    if hasDropAction() or savedBaseCFrame then
-                                        flyToStrictTarget(savedBaseCFrame)
+                                    -- 2. ចុចយកពង និងរង់ចាំរហូតទាល់តែបានកាន់ពងពិតប្រាកដ (មានពាក្យ Drop)
+                                    local startTime = tick()
+                                    while tick() - startTime < 2 do
+                                        if not Config.AutoSteal then break end
+                                        if eggData.prompt and eggData.prompt.Parent then
+                                            fireproximityprompt(eggData.prompt)
+                                        end
+                                        if hasDropAction() then
+                                            break
+                                        end
                                         task.wait(0.1)
-                                        break
                                     end
+
+                                    -- 3. ក្រោយពេលកាន់ពងបានហើយ ទើបហោះត្រឡប់មក Safe Zone វិញ
+                                    if savedBaseCFrame then
+                                        flyToStrictTarget(savedBaseCFrame)
+                                        task.wait(0.2)
+                                        
+                                        -- 4. រង់ចាំរហូតទាល់តែទម្លាក់ពងចូលបាសរួច (លែងមានពាក្យ Drop) សឹមទៅយកពងថ្មី
+                                        local dropWaitTime = tick()
+                                        while hasDropAction() and (tick() - dropWaitTime < 4) do
+                                            if not Config.AutoSteal then break end
+                                            task.wait(0.1)
+                                        end
+                                    end
+                                    break 
                                 end
                             end
                         end
@@ -540,4 +542,4 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("⚡ All Biomes Unlocked & Expanded Stealer Loaded Successfully!")
+print("🎯 Smart Steal & Drop Wait Loaded Successfully!")
