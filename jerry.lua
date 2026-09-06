@@ -1,5 +1,5 @@
 -- ====================================================================================
--- [[ ULTIMATE STEAL AN EGG: SMART STEAL & WAIT FOR DROP ]] --
+-- [[ ULTIMATE STEAL AN EGG: SUPER FAST & ALL AREAS UNLOCKED ]] --
 -- ====================================================================================
 
 local Players = game:GetService("Players")
@@ -69,23 +69,23 @@ UIPadding.PaddingTop = UDim.new(0, 12)
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, -20, 0, 28)
 Title.BackgroundTransparency = 1
-Title.Text = "🔥 HIGH-TIER & SMART DROP WAIT"
+Title.Text = "🚀 SUPER FAST & ALL AREAS STEAL"
 Title.TextColor3 = colors.yellow
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 10
 
--- Config State (Default: យកតែតំបន់ល្អៗ មិនយក Forest/Lake ទេ។)
+-- Config State (Default: เปิด All = true เพื่อให้เก็บทุกที่ ไม่พลาดកន្លែងណាឡើយ)
 local Config = {
     AutoSteal = false,
-    FlightSpeed = 400,
-    MaxFlyRadius = 5000, 
+    FlightSpeed = 600, -- បង្កើនល្បហរហោះឱ្យលឿនជាងមុន
+    MaxFlyRadius = 8000, 
     SelectedBiomes = {
-        ["All"] = false,
-        ["Forest"] = false,
-        ["Lake"] = false,
-        ["Desert"] = false,
-        ["Jungle"] = false,
-        ["Snow"] = false,
+        ["All"] = true, -- เปิดทุกที่រួចជាស្រេច
+        ["Forest"] = true,
+        ["Lake"] = true,
+        ["Desert"] = true,
+        ["Jungle"] = true,
+        ["Snow"] = true,
         ["Volcano"] = true,
         ["Abyss Ocean"] = true,
         ["Prehistoric"] = true,
@@ -195,7 +195,7 @@ Instance.new("UIStroke", RadiusBox).Color = colors.yellow
 
 RadiusBox.FocusLost:Connect(function()
     local val = tonumber(RadiusBox.Text)
-    if val then Config.MaxFlyRadius = math.clamp(val, 100, 10000) end
+    if val then Config.MaxFlyRadius = math.clamp(val, 100, 15000) end
     RadiusBox.Text = tostring(Config.MaxFlyRadius)
 end)
 
@@ -230,7 +230,7 @@ local ToggleLabel = Instance.new("TextLabel", ToggleFrame)
 ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
 ToggleLabel.Position = UDim2.new(0, 12, 0, 0)
 ToggleLabel.BackgroundTransparency = 1
-ToggleLabel.Text = "Auto Steal (Smart Drop Wait)"
+ToggleLabel.Text = "Auto Steal (Super Fast)"
 ToggleLabel.TextColor3 = colors.text
 ToggleLabel.Font = Enum.Font.GothamSemibold
 ToggleLabel.TextSize = 11
@@ -329,7 +329,7 @@ local function flyToStrictTarget(targetCF)
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then return end
         local root = char.HumanoidRootPart
-        local targetPos = targetCF.Position + Vector3.new(0, 4, 0)
+        local targetPos = targetCF.Position + Vector3.new(0, 3, 0)
         
         if savedBaseCFrame then
             local basePos = savedBaseCFrame.Position
@@ -344,23 +344,16 @@ local function flyToStrictTarget(targetCF)
         local distance = (currentPos - targetPos).Magnitude
         local speed = math.clamp(Config.FlightSpeed, 10, 1000)
         
-        if distance > 100 and speed > 350 then
-            local steps = math.ceil(distance / 120)
-            for i = 1, steps do
-                local alpha = i / steps
-                root.CFrame = CFrame.new(currentPos:Lerp(targetPos, alpha))
-                task.wait(0.01)
-            end
-        else
-            local timeTaken = distance / speed
-            local tween = TweenService:Create(root, TweenInfo.new(timeTaken, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
-            tween:Play()
-            tween.Completed:Wait()
-        end
+        -- ហោះលឿននិងរលូនមិនរអាក់រអួល
+        local timeTaken = distance / speed
+        if timeTaken < 0.05 then timeTaken = 0.05 end
+        local tween = TweenService:Create(root, TweenInfo.new(timeTaken, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+        tween:Play()
+        tween.Completed:Wait()
     end)
 end
 
--- 🔍 ពិនិត្យមើលថាតើកំពុងកាន់ពងនៅលើដៃដែរឬទេ (មានពាក្យ Drop)
+-- 🔍 ពិនិត្យមើលថាតើកំពុងកាន់ពងនៅលើដៃដែរឬទេ
 local function hasDropAction()
     local hasDrop = false
     pcall(function()
@@ -387,6 +380,7 @@ end
 
 local connection = nil
 local loopTask = nil
+local failedEggs = {} -- បញ្ជីទប់ស្កាត់ការជាប់គាំង (Anti-Stuck)
 
 ToggleBtn.MouseButton1Click:Connect(function()
     Config.AutoSteal = not Config.AutoSteal
@@ -417,7 +411,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
                         local availableEggs = {}
 
                         for _, v in ipairs(Workspace:GetDescendants()) do
-                            if v:IsA("ProximityPrompt") then
+                            if v:IsA("ProximityPrompt") and not failedEggs[v] then
                                 local action = v.ActionText:lower()
                                 local objText = v.ObjectText:lower()
                                 if action:match("steal") or action:match("egg") or objText:match("egg") then
@@ -450,8 +444,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
                                                 end
                                             end
 
-                                            local isLowTier = fullText:match("forest") or fullText:match("lake") or fullText:match("desert") or fullText:match("jungle") or fullText:match("snow")
-
                                             local shouldSteal = false
                                             if Config.SelectedBiomes["All"] then
                                                 shouldSteal = true
@@ -464,10 +456,6 @@ ToggleBtn.MouseButton1Click:Connect(function()
                                                         end
                                                     end
                                                 end
-                                            end
-
-                                            if isLowTier and not Config.SelectedBiomes["Forest"] and not Config.SelectedBiomes["Lake"] then
-                                                shouldSteal = false
                                             end
 
                                             if shouldSteal then
@@ -486,6 +474,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
                             end
                         end
 
+                        -- เรียงลำดับจากคะแนนสูงไปต่ำ
                         table.sort(availableEggs, function(a, b)
                             if a.score ~= b.score then
                                 return a.score > b.score
@@ -498,33 +487,39 @@ ToggleBtn.MouseButton1Click:Connect(function()
                             for _, eggData in ipairs(availableEggs) do
                                 if not Config.AutoSteal then break end
                                 if eggData.prompt and eggData.prompt.Parent and eggData.part then
-                                    -- 1. ហោះទៅកន្លែងពង
+                                    -- 1. ហោះទៅកន្លែងពងភ្លាមៗយ៉ាងលឿន
                                     flyToStrictTarget(eggData.part.CFrame)
-                                    task.wait(0.05)
 
-                                    -- 2. ចុចយកពង និងរង់ចាំរហូតទាល់តែបានកាន់ពងពិតប្រាកដ (មានពាក្យ Drop)
+                                    -- 2. ចុចយកពង (Fire Prompt ញឹកនិងលឿនខ្លាំង) រហូតបានកាន់ ឬហួសពេលកំណត់ (១ វិនាទី)
                                     local startTime = tick()
-                                    while tick() - startTime < 2 do
+                                    local successGet = false
+                                    while tick() - startTime < 1 do
                                         if not Config.AutoSteal then break end
                                         if eggData.prompt and eggData.prompt.Parent then
                                             fireproximityprompt(eggData.prompt)
                                         end
                                         if hasDropAction() then
+                                            successGet = true
                                             break
                                         end
-                                        task.wait(0.1)
+                                        task.wait(0.02)
                                     end
 
-                                    -- 3. ក្រោយពេលកាន់ពងបានហើយ ទើបហោះត្រឡប់មក Safe Zone វិញ
-                                    if savedBaseCFrame then
-                                        flyToStrictTarget(savedBaseCFrame)
-                                        task.wait(0.2)
-                                        
-                                        -- 4. រង់ចាំរហូតទាល់តែទម្លាក់ពងចូលបាសរួច (លែងមានពាក្យ Drop) សឹមទៅយកពងថ្មី
-                                        local dropWaitTime = tick()
-                                        while hasDropAction() and (tick() - dropWaitTime < 4) do
-                                            if not Config.AutoSteal then break end
-                                            task.wait(0.1)
+                                    -- បើយកអត់បាន (ติด) ដាក់ចូល Failed List ដើម្បីកុំឱ្យវាជាប់គាំងនៅហ្នឹង ហើយរត់ទៅកន្លែងផ្សេងភ្លាម
+                                    if not successGet then
+                                        failedEggs[eggData.prompt] = true
+                                        task.delay(10, function() failedEggs[eggData.prompt] = nil end) -- Reset ក្រោយ ១០វិនាទី
+                                    else
+                                        -- 3. ក្រោយពេលកាន់ពងបានហើយ ហោះត្រឡប់មក Safe Zone វិញភ្លាម
+                                        if savedBaseCFrame then
+                                            flyToStrictTarget(savedBaseCFrame)
+                                            
+                                            -- 4. រង់ចាំទម្លាក់ពងចុះ (Drop Wait) យ៉ាងលឿន
+                                            local dropWaitTime = tick()
+                                            while hasDropAction() and (tick() - dropWaitTime < 2.5) do
+                                                if not Config.AutoSteal then break end
+                                                task.wait(0.05)
+                                            end
                                         end
                                     end
                                     break 
@@ -533,7 +528,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
                         end
                     end
                 end)
-                task.wait(0.2)
+                task.wait(0.05) -- កាត់បន្ថយការរងចាំឱ្យនៅតិចបំផុត ដើម្បីល្បឿនលឿនទ្វេដង
             end
         end)
     else
@@ -542,4 +537,4 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("🎯 Smart Steal & Drop Wait Loaded Successfully!")
+print("🚀 Super Fast & All Areas Steal Loaded Successfully!")
