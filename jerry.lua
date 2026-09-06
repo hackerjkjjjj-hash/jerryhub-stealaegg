@@ -803,7 +803,7 @@ print("-------------------------------------------------------------------------
 -- [[ PART 8: ULTIMATE STEAL AN EGG MASTER HUB - MAGNET & THEME SYSTEM ]] --
 -- ====================================================================================
 
--- [MODULE 8.1]: INSTANT EGG MAGNET & TELEKINESIS ENGINE (ប្រព័ន្ធទាញពងមករកតួអក្សរអូតូ)
+-- [MODULE 8.1]: SAFE EGG INTERACTION (បានកែសម្រួលដើម្បីការពារការជាប់ Kick)
 local EggMagnetManager = {
     Active = false,
     Radius = 150
@@ -823,9 +823,9 @@ function EggMagnetManager.ToggleMagnet(stateValue)
                             if parentPartNode and parentPartNode:IsA("BasePart") then
                                 local distanceToPart = (parentPartNode.Position - rootPartPos).Magnitude
                                 if distanceToPart <= EggMagnetManager.Radius then
-                                    -- ទាញផ្នែកពងមកជិតតួអក្សរភ្លាមៗ
-                                    parentPartNode.CFrame = characterInstance.HumanoidRootPart.CFrame + Vector3.new(0, 2, -3)
+                                    -- 🛑 លុបកូដ CFrame ចោល ជំនួសមកវិញដោយការបើក ProximityPrompt ដោយសុវត្ថិភាព
                                     worldDescendant.HoldDuration = 0
+                                    worldDescendant.RequiresLineOfSight = false
                                     fireproximityprompt(worldDescendant)
                                 end
                             end
@@ -833,7 +833,7 @@ function EggMagnetManager.ToggleMagnet(stateValue)
                     end
                 end
             end)
-            task.wait(0.2)
+            task.wait(0.3)
         end
     end)
 end
