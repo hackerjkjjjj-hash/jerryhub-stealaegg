@@ -1,17 +1,7 @@
-
 --[[
-    Jerry Hub - Animation Unchanged / Movement Safety Test
-    NOTE:
-    The Animation Pack section below is intentionally unchanged.
-    This test version does NOT attempt to bypass any server anti-cheat.
-    Movement-exploit features can be disabled by the game/server independently.
+    Jerry Hub - Info / Steal UI
+    Feature functions removed. UI only.
 ]]
-local __JerryMovementSafetyTest = true
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 -- Create Main ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
@@ -169,7 +159,7 @@ createTabBtn("Info", 10, InfoPage)
 createTabBtn("Steal", 50, StealPage)
 
 ---------------------------------------------------------
--- PAGE: STEAL (UI PLACEHOLDER)
+-- PAGE: STEAL
 ---------------------------------------------------------
 local StealTitle = Instance.new("TextLabel", StealPage)
 StealTitle.Size = UDim2.new(1, -20, 0, 35)
@@ -181,92 +171,51 @@ StealTitle.Font = Enum.Font.SourceSansBold
 StealTitle.TextSize = 20
 StealTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-local StealStatus = Instance.new("TextLabel", StealPage)
-StealStatus.Size = UDim2.new(1, -20, 0, 70)
-StealStatus.Position = UDim2.new(0, 10, 0, 55)
-StealStatus.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-StealStatus.Text = "Steal Function: Coming Soon"
-StealStatus.TextColor3 = Color3.fromRGB(190, 190, 190)
-StealStatus.Font = Enum.Font.SourceSans
-StealStatus.TextSize = 16
-StealStatus.Parent = StealPage
-Instance.new("UICorner", StealStatus).CornerRadius = UDim.new(0, 6)
+local StealToggleFrame = Instance.new("Frame", StealPage)
+StealToggleFrame.Size = UDim2.new(1, -20, 0, 45)
+StealToggleFrame.Position = UDim2.new(0, 10, 0, 55)
+StealToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Instance.new("UICorner", StealToggleFrame).CornerRadius = UDim.new(0, 6)
 
----------------------------------------------------------
--- PROXIMITY PROMPT: SAFE MONITOR TOGGLE
--- This only monitors/counts prompts locally.
--- It does NOT activate, modify, or bypass prompts.
----------------------------------------------------------
-local PromptMonitorEnabled = false
-local PromptMonitorConnection = nil
+local StealLabel = Instance.new("TextLabel", StealToggleFrame)
+StealLabel.Size = UDim2.new(1, -70, 1, 0)
+StealLabel.Position = UDim2.new(0, 12, 0, 0)
+StealLabel.BackgroundTransparency = 1
+StealLabel.Text = "ProximityPrompt"
+StealLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+StealLabel.Font = Enum.Font.SourceSansBold
+StealLabel.TextSize = 15
+StealLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local PromptToggle = Instance.new("TextButton", StealPage)
-PromptToggle.Size = UDim2.new(1, -20, 0, 42)
-PromptToggle.Position = UDim2.new(0, 10, 0, 135)
-PromptToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-PromptToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-PromptToggle.Font = Enum.Font.SourceSansBold
-PromptToggle.TextSize = 16
-PromptToggle.Text = "ProximityPrompt Monitor: OFF"
-Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(0, 6)
+local StealToggle = Instance.new("TextButton", StealToggleFrame)
+StealToggle.Size = UDim2.new(0, 45, 0, 24)
+StealToggle.Position = UDim2.new(1, -55, 0.5, -12)
+StealToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+StealToggle.Text = ""
+Instance.new("UICorner", StealToggle).CornerRadius = UDim.new(1, 0)
 
-local PromptCount = Instance.new("TextLabel", StealPage)
-PromptCount.Size = UDim2.new(1, -20, 0, 35)
-PromptCount.Position = UDim2.new(0, 10, 0, 185)
-PromptCount.BackgroundTransparency = 1
-PromptCount.TextColor3 = Color3.fromRGB(180, 180, 180)
-PromptCount.Font = Enum.Font.SourceSans
-PromptCount.TextSize = 14
-PromptCount.Text = "Detected ProximityPrompts: 0"
+local StealState = false
+local StealStateText = Instance.new("TextLabel", StealPage)
+StealStateText.Size = UDim2.new(1, -20, 0, 30)
+StealStateText.Position = UDim2.new(0, 10, 0, 110)
+StealStateText.BackgroundTransparency = 1
+StealStateText.Text = "Status: OFF"
+StealStateText.TextColor3 = Color3.fromRGB(180, 180, 180)
+StealStateText.Font = Enum.Font.SourceSans
+StealStateText.TextSize = 14
+StealStateText.TextXAlignment = Enum.TextXAlignment.Left
 
-local function updatePromptCount()
-    local count = 0
+StealToggle.MouseButton1Click:Connect(function()
+    StealState = not StealState
 
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") then
-            count += 1
-        end
-    end
-
-    PromptCount.Text = "Detected ProximityPrompts: " .. tostring(count)
-end
-
-local function stopPromptMonitor()
-    PromptMonitorEnabled = false
-
-    if PromptMonitorConnection then
-        PromptMonitorConnection:Disconnect()
-        PromptMonitorConnection = nil
-    end
-
-    PromptToggle.Text = "ProximityPrompt Monitor: OFF"
-end
-
-local function startPromptMonitor()
-    PromptMonitorEnabled = true
-    PromptToggle.Text = "ProximityPrompt Monitor: ON"
-    updatePromptCount()
-
-    PromptMonitorConnection = RunService.Heartbeat:Connect(function()
-        if not PromptMonitorEnabled then
-            return
-        end
-
-        -- Update occasionally without changing or activating prompts.
-        if math.floor(os.clock() * 2) % 2 == 0 then
-            updatePromptCount()
-        end
-    end)
-end
-
-PromptToggle.MouseButton1Click:Connect(function()
-    if PromptMonitorEnabled then
-        stopPromptMonitor()
+    if StealState then
+        StealToggle.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        StealStateText.Text = "Status: ON (UI only)"
     else
-        startPromptMonitor()
+        StealToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        StealStateText.Text = "Status: OFF"
     end
 end)
-
 
 ---------------------------------------------------------
 -- PAGE 3: INFO
@@ -291,414 +240,3 @@ MyInfoText.Font = Enum.Font.SourceSans
 MyInfoText.TextSize = 16
 MyInfoText.Parent = InfoPage
 
----------------------------------------------------------
--- PAGE 4: EMOTES
----------------------------------------------------------
-local currentTrack = nil
-
-local function playEmote(animId)
-    local char = LocalPlayer.Character
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-    
-    if animator then
-        if currentTrack then
-            currentTrack:Stop()
-        end
-        
-        local anim = Instance.new("Animation")
-        anim.AnimationId = "rbxassetid://" .. tostring(animId)
-        
-        currentTrack = animator:LoadAnimation(anim)
-        currentTrack:Play()
-    end
-end
-
-local StopEmoteBtn = Instance.new("TextButton")
-StopEmoteBtn.Size = UDim2.new(1, 0, 0, 30)
-StopEmoteBtn.Position = UDim2.new(0, 0, 0, 0)
-StopEmoteBtn.Text = "Stop Emote"
-StopEmoteBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-StopEmoteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-StopEmoteBtn.Font = Enum.Font.SourceSansBold
-StopEmoteBtn.TextSize = 14
-StopEmoteBtn.Parent = EmotePage
-Instance.new("UICorner", StopEmoteBtn).CornerRadius = UDim.new(0, 6)
-
-StopEmoteBtn.MouseButton1Click:Connect(function()
-    if currentTrack then
-        currentTrack:Stop()
-        currentTrack = nil
-    end
-end)
-
-local EmoteScroll = Instance.new("ScrollingFrame")
-EmoteScroll.Size = UDim2.new(1, 0, 1, -38)
-EmoteScroll.Position = UDim2.new(0, 0, 0, 38)
-EmoteScroll.BackgroundTransparency = 1
-EmoteScroll.BorderSizePixel = 0
-EmoteScroll.ScrollBarThickness = 4
-EmoteScroll.Parent = EmotePage
-
-local UIGrid = Instance.new("UIGridLayout")
-UIGrid.CellSize = UDim2.new(0, 105, 0, 35)
-UIGrid.CellPadding = UDim2.new(0, 8, 0, 8)
-UIGrid.Parent = EmoteScroll
-
-UIGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    EmoteScroll.CanvasSize = UDim2.new(0, 0, 0, UIGrid.AbsoluteContentSize.Y + 10)
-end)
-
-local emoteList = {
-    {Name = "Coming Soon", ID = 5915773155},
-}
-
-for _, data in ipairs(emoteList) do
-    local btn = Instance.new("TextButton")
-    btn.Text = data.Name
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 13
-    btn.Parent = EmoteScroll
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    
-    btn.MouseButton1Click:Connect(function()
-        playEmote(data.ID)
-    end)
-end
-
----------------------------------------------------------
--- PAGE 5: ANIMATION PACKS (ANIMATE SCRIPT)
--- Uses Roblox's documented Zombie animation assets and the character's
--- existing Animate script. This avoids HumanoidDescription changes.
-
-local localPlayer = game:GetService("Players").LocalPlayer
-
-local AnimationPacks = {
-    Zombie = {
-        Idle     = "rbxassetid://616158929",
-        Idle2    = "rbxassetid://616160636",
-        Walk     = "rbxassetid://616168032",
-        Run      = "rbxassetid://616163682",
-        Jump     = "rbxassetid://616161997",
-        Fall     = "rbxassetid://616157476",
-        Climb    = "rbxassetid://616156119",
-        Swim     = "rbxassetid://616165109",
-        SwimIdle = "rbxassetid://616166655",
-    },
-
-    -- adidas Community Animation Pack
-    -- adidas Community
-    -- These are the actual animation asset IDs behind the catalog items.
-    AdidasCommunity = {
-        Idle     = "rbxassetid://122257458498464",
-        Idle2    = "rbxassetid://122257458498464",
-        Walk     = "rbxassetid://122150855457006",
-        Run      = "rbxassetid://82598234841035",
-        Jump     = "rbxassetid://75290611992385",
-        Fall     = "rbxassetid://98600215928904",
-        Climb    = "rbxassetid://88763136693023",
-        Swim     = "rbxassetid://133308483266208",
-        SwimIdle = "rbxassetid://133308483266208",
-    }
-}
-local zombieAnimationEnabled = false
-local respawnConnection = nil
-
-local function setAnimationId(parent, childName, animationId)
-    local obj = parent and parent:FindFirstChild(childName)
-    if obj and obj:IsA("Animation") then
-        obj.AnimationId = animationId
-        return true
-    end
-    return false
-end
-
-local function stopCurrentAnimations(humanoid)
-    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-    if animator then
-        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-            track:Stop(0.08)
-        end
-    end
-end
-
-local function applyAnimationPack(character, pack)
-    if not character or not character.Parent or not pack then
-        return false
-    end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local animate = character:FindFirstChild("Animate")
-    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-
-    if not humanoid or not animator then
-        return false
-    end
-
-    -- Stop/remove our previous controller.
-    local oldFolder = character:FindFirstChild("__JerryAnimationPack")
-    if oldFolder then
-        oldFolder:Destroy()
-    end
-
-    -- Disable Roblox's default Animate while this pack is active.
-    if animate then
-        animate.Enabled = false
-    end
-
-    local folder = Instance.new("Folder")
-    folder.Name = "__JerryAnimationPack"
-    folder.Parent = character
-
-    local tracks = {}
-    local function load(name, id, priority, looped)
-        if not id or id == "" then return end
-
-        local anim = Instance.new("Animation")
-        anim.Name = name
-        anim.AnimationId = id
-        anim.Parent = folder
-
-        local ok, track = pcall(function()
-            return animator:LoadAnimation(anim)
-        end)
-
-        if ok and track then
-            track.Priority = priority
-            track.Looped = looped
-            tracks[name] = track
-        end
-    end
-
-    load("Idle", pack.Idle, Enum.AnimationPriority.Idle, true)
-    load("Walk", pack.Walk, Enum.AnimationPriority.Movement, true)
-    load("Run", pack.Run or pack.Walk, Enum.AnimationPriority.Movement, true)
-    load("Jump", pack.Jump, Enum.AnimationPriority.Movement, false)
-    load("Fall", pack.Fall, Enum.AnimationPriority.Movement, true)
-    load("Climb", pack.Climb, Enum.AnimationPriority.Movement, true)
-    load("Swim", pack.Swim, Enum.AnimationPriority.Movement, true)
-    load("SwimIdle", pack.SwimIdle or pack.Swim, Enum.AnimationPriority.Movement, true)
-
-    local current
-    local stateConnection
-    local runningConnection
-
-    local function stopAll(fade)
-        for _, track in pairs(tracks) do
-            if track.IsPlaying then
-                track:Stop(fade or 0.12)
-            end
-        end
-    end
-
-    local function play(name, speed)
-        local track = tracks[name]
-        if not track then return end
-
-        if current ~= track then
-            stopAll(0.12)
-            current = track
-            track:Play(0.12, 1, speed or 1)
-        elseif speed then
-            track:AdjustSpeed(speed)
-        end
-    end
-
-    local function update()
-        local state = humanoid:GetState()
-        local moving = humanoid.MoveDirection.Magnitude > 0.05
-        local speed = humanoid.WalkSpeed
-
-        if state == Enum.HumanoidStateType.Jumping then
-            play("Jump", 1)
-        elseif state == Enum.HumanoidStateType.Freefall then
-            play("Fall", 1)
-        elseif state == Enum.HumanoidStateType.Climbing then
-            play("Climb", math.max(speed / 8, 0.5))
-        elseif state == Enum.HumanoidStateType.Swimming then
-            if moving then
-                play("Swim", math.max(speed / 8, 0.5))
-            else
-                play("SwimIdle", 1)
-            end
-        elseif moving then
-            -- adidas uses a distinct skate-style walk/run.
-            if speed >= 14 and tracks.Run then
-                play("Run", math.max(speed / 16, 0.5))
-            else
-                play("Walk", math.max(speed / 8, 0.5))
-            end
-        else
-            play("Idle", 1)
-        end
-    end
-
-    stateConnection = humanoid.StateChanged:Connect(function()
-        task.defer(update)
-    end)
-
-    runningConnection = humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function()
-        task.defer(update)
-    end)
-
-    -- Clean up automatically if the character is removed.
-    local ancestryConnection
-    ancestryConnection = character.AncestryChanged:Connect(function(_, parent)
-        if parent then return end
-
-        if animationControllerCleanup then
-            pcall(animationControllerCleanup)
-            animationControllerCleanup = nil
-        end
-    end)
-
-    animationControllerCleanup = function()
-        if stateConnection then
-            stateConnection:Disconnect()
-            stateConnection = nil
-        end
-
-        if runningConnection then
-            runningConnection:Disconnect()
-            runningConnection = nil
-        end
-
-        if ancestryConnection then
-            ancestryConnection:Disconnect()
-            ancestryConnection = nil
-        end
-
-        for _, track in pairs(tracks) do
-            pcall(function()
-                track:Stop(0.08)
-                track:Destroy()
-            end)
-        end
-
-        current = nil
-    end
-
-    update()
-    return next(tracks) ~= nil
-end
-
-local activeAnimationPack = nil
-
-local function applyZombieAnimation(character)
-    activeAnimationPack = "Zombie"
-    return applyAnimationPack(character, AnimationPacks.Zombie)
-end
-
-local function resetAnimations(character)
-    if not character or not character.Parent then return end
-
-    -- Fully stop Jerry's custom animation controller.
-    if animationControllerCleanup then
-        pcall(animationControllerCleanup)
-        animationControllerCleanup = nil
-    end
-
-    local animate = character:FindFirstChild("Animate")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local packFolder = character:FindFirstChild("__JerryAnimationPack")
-
-    if humanoid then
-        stopCurrentAnimations(humanoid)
-    end
-
-    if packFolder then
-        packFolder:Destroy()
-    end
-
-    -- Restore Roblox's normal Animate controller.
-    if animate then
-        animate.Enabled = false
-        task.wait(0.1)
-        animate.Enabled = true
-        task.wait(0.15)
-    end
-end
-
-local function setupAnimationOnCharacter(character)
-    if not zombieAnimationEnabled or not activeAnimationPack then
-        return
-    end
-
-    local animate = character:WaitForChild("Animate", 5)
-    if not animate then return end
-
-    task.wait(0.1)
-    applyAnimationPack(character, AnimationPacks[activeAnimationPack])
-end
-
--- Re-apply Zombie animations after every respawn.
-if respawnConnection then
-    respawnConnection:Disconnect()
-end
-
-respawnConnection = localPlayer.CharacterAdded:Connect(function(character)
-    setupAnimationOnCharacter(character)
-end)
-
--- Reset / Default Animation button
-local ResetAnimBtn = Instance.new("TextButton")
-ResetAnimBtn.Size = UDim2.new(1, 0, 0, 30)
-ResetAnimBtn.Position = UDim2.new(0, 0, 0, 0)
-ResetAnimBtn.Text = "Reset Animation (Default)"
-ResetAnimBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-ResetAnimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ResetAnimBtn.Font = Enum.Font.SourceSansBold
-ResetAnimBtn.TextSize = 14
-ResetAnimBtn.Parent = AnimPage
-Instance.new("UICorner", ResetAnimBtn).CornerRadius = UDim.new(0, 6)
-
-ResetAnimBtn.MouseButton1Click:Connect(function()
-    zombieAnimationEnabled = false
-    activeAnimationPack = nil
-
-    local character = localPlayer.Character
-    if character then
-        resetAnimations(character)
-    end
-end)
-
--- Scrolling Frame for Animation Packs
-local AnimScroll = Instance.new("ScrollingFrame")
-AnimScroll.Size = UDim2.new(1, 0, 1, -38)
-AnimScroll.Position = UDim2.new(0, 0, 0, 38)
-AnimScroll.BackgroundTransparency = 1
-AnimScroll.BorderSizePixel = 0
-AnimScroll.ScrollBarThickness = 4
-AnimScroll.Parent = AnimPage
-
-local AnimGrid = Instance.new("UIGridLayout")
-AnimGrid.CellSize = UDim2.new(0, 105, 0, 35)
-AnimGrid.CellPadding = UDim2.new(0, 8, 0, 8)
-AnimGrid.Parent = AnimScroll
-
-AnimGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    AnimScroll.CanvasSize = UDim2.new(0, 0, 0, AnimGrid.AbsoluteContentSize.Y + 10)
-end)
-
-for packName, _ in pairs(AnimationPacks) do
-    local btn = Instance.new("TextButton")
-    btn.Text = packName
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 13
-    btn.Parent = AnimScroll
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
-    btn.MouseButton1Click:Connect(function()
-        zombieAnimationEnabled = true
-        activeAnimationPack = packName
-
-        local character = localPlayer.Character
-        if character then
-            applyAnimationPack(character, AnimationPacks[packName])
-        end
-    end)
-end
