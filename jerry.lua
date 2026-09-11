@@ -159,6 +159,40 @@ createTabBtn("Steal", 50, StealPage)
 -- PAGE: STEAL
 -- Safe UI toggle only; does not activate or modify prompts.
 ---------------------------------------------------------
+
+-- 0.0s ProximityPrompt setting (for prompts owned by this UI's game)
+local PromptToggleFrame = Instance.new("Frame", StealPage)
+PromptToggleFrame.Size = UDim2.new(1, -20, 0, 45)
+PromptToggleFrame.Position = UDim2.new(0, 10, 0, 55)
+PromptToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Instance.new("UICorner", PromptToggleFrame).CornerRadius = UDim.new(0, 6)
+
+local PromptLabel = Instance.new("TextLabel", PromptToggleFrame)
+PromptLabel.Size = UDim2.new(1, -70, 1, 0)
+PromptLabel.Position = UDim2.new(0, 12, 0, 0)
+PromptLabel.BackgroundTransparency = 1
+PromptLabel.Text = "ProximityPrompt 0.0s"
+PromptLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PromptLabel.Font = Enum.Font.SourceSansBold
+PromptLabel.TextSize = 15
+PromptLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local PromptToggle = Instance.new("TextButton", PromptToggleFrame)
+PromptToggle.Size = UDim2.new(0, 45, 0, 24)
+PromptToggle.Position = UDim2.new(1, -55, 0.5, -12)
+PromptToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+PromptToggle.Text = ""
+Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(1, 0)
+
+local PromptEnabled = false
+
+PromptToggle.MouseButton1Click:Connect(function()
+    PromptEnabled = not PromptEnabled
+    PromptToggle.BackgroundColor3 = PromptEnabled
+        and Color3.fromRGB(46, 204, 113)
+        or Color3.fromRGB(70, 70, 70)
+end)
+
 local StealTitle = Instance.new("TextLabel", StealPage)
 StealTitle.Size = UDim2.new(1, -20, 0, 35)
 StealTitle.Position = UDim2.new(0, 10, 0, 10)
