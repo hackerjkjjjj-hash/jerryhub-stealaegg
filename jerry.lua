@@ -1,6 +1,7 @@
---// JERRY v1.0 - UI + Instant Prompt (0.0s)
---// Main Logo: 74724530538319
---// Button Logo: 131681030058686
+--// JERRY v1.0 - Modern UI + Floating Button + Original Logos + Instant Prompt
+--// Main Logo: rbxassetid://133870737244711
+--// Open Button Logo: rbxassetid://135995313313068
+--// Sidebar Button Logo: rbxassetid://131681030058686
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -16,13 +17,36 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
 
---// Main Frame
+---------------------------------------------------------
+-- Circular Floating Toggle Button (Added Back)
+---------------------------------------------------------
+local OpenButton = Instance.new("ImageButton")
+OpenButton.Name = "OpenButton"
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Position = UDim2.new(0, 15, 0.5, -25)
+OpenButton.Image = "rbxassetid://135995313313068"
+OpenButton.BackgroundTransparency = 1
+OpenButton.Active = true
+OpenButton.Draggable = true
+OpenButton.Parent = ScreenGui
+
+local openCorner = Instance.new("UICorner", OpenButton)
+openCorner.CornerRadius = UDim.new(1, 0)
+
+local openStroke = Instance.new("UIStroke", OpenButton)
+openStroke.Color = Color3.fromRGB(95, 35, 180)
+openStroke.Thickness = 2
+
+---------------------------------------------------------
+-- Main Frame
+---------------------------------------------------------
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 650, 0, 390)
 MainFrame.Position = UDim2.new(0.5, -325, 0.5, -195)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 11, 17)
 MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -33,6 +57,11 @@ local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = Color3.fromRGB(95, 35, 180)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
+
+-- Toggle UI visibility when clicking floating button
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
 
 --// TOP BAR
 local TopBar = Instance.new("Frame")
@@ -45,13 +74,13 @@ local TopCorner = Instance.new("UICorner")
 TopCorner.CornerRadius = UDim.new(0, 12)
 TopCorner.Parent = TopBar
 
---// Main Frame Logo
+--// Main Frame Logo (Original Logo Restored)
 local MainLogo = Instance.new("ImageLabel")
 MainLogo.Name = "MainLogo"
 MainLogo.Size = UDim2.new(0, 45, 0, 45)
 MainLogo.Position = UDim2.new(0, 12, 0, 10)
 MainLogo.BackgroundTransparency = 1
-MainLogo.Image = "rbxassetid://74724530538319"
+MainLogo.Image = "rbxassetid://133870737244711"
 MainLogo.ScaleType = Enum.ScaleType.Fit
 MainLogo.Parent = TopBar
 
@@ -78,7 +107,7 @@ Subtitle.Font = Enum.Font.Gotham
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.Parent = TopBar
 
---// Close
+--// Close Button (Hides MainFrame instead of destroying)
 local Close = Instance.new("TextButton")
 Close.Size = UDim2.new(0, 42, 0, 42)
 Close.Position = UDim2.new(1, -54, 0, 11)
@@ -95,7 +124,7 @@ CloseCorner.CornerRadius = UDim.new(0, 8)
 CloseCorner.Parent = Close
 
 Close.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
+    MainFrame.Visible = false
 end)
 
 --// SIDEBAR
@@ -400,4 +429,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("JERRY v1.0 Loaded with Instant Prompt")
+print("JERRY v1.0 Fully Loaded with Open Button & Instant Prompt")
