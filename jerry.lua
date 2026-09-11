@@ -1,801 +1,1007 @@
---========================================================
--- STEAL AN EGG - HUB (SPEED, AUTO EGG, TITAN & EVENT)
--- Put in: StarterPlayer > StarterPlayerScripts (LocalScript)
---========================================================
+
+--[[
+    Jerry Hub - Animation Unchanged / Movement Safety Test
+    NOTE:
+    The Animation Pack section below is intentionally unchanged.
+    This test version does NOT attempt to bypass any server anti-cheat.
+    Movement-exploit features can be disabled by the game/server independently.
+]]
+local __JerryMovementSafetyTest = true
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
+-- Create Main ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DeltaCustomUI"
+ScreenGui.ResetOnSpawn = false
 
--- States & Values
-local speedEnabled = false
-local highSpeedVal = 240
-local lowSpeedVal = 50
-local isHighSpeedMode = false
-
-local autoEggEnabled = false
-local isProcessingEgg = false
-
-local flying = false
-local flySpeed = 80
-local flyBodyVel, flyBodyGyro
-
-local espEnabled = false
-local savedCoords = {}
-
--- New Update States (Titan Temple & Hungry Frog Event)
-local autoStealTitan = false
-local autoFeedFrog = false
-local godModeEnabled = false
-local instantSteal = false
-
--- Helper functions
-local function parseSpeedValue(val)
-    if typeof(val) == "number" then return val end
-    if typeof(val) == "string" then
-        local numStr = val:match("[%d%.]+")
-        if not numStr then return 0 end
-        local num = tonumber(numStr) or 0
-        if val:find("B") or val:find("b") then return num * 1e9
-        elseif val:find("M") or val:find("m") then return num * 1e6
-        elseif val:find("K") or val:find("k") then return num * 1e3
-        end
-        return num
-    end
-    return 0
+if gethui then
+    ScreenGui.Parent = gethui()
+else
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
-local function checkCurrentServerSpeed()
-    local maxAllowedSpeed = 100 * 1e6
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then
-            local leaderstats = p:FindFirstChild("leaderstats")
-            if leaderstats then
-                local speedStat = leaderstats:FindFirstChild("Speed")
-                if speedStat and parseSpeedValue(speedStat.Value) >= maxAllowedSpeed then
-                    return false
-                end
-            end
-        end
-    end
-    return true
-end
+-- Main UI Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 480, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
-local function disableCollisionForModel(model)
-    if not model then return end
-    if model:IsA("BasePart") then
-        model.CanCollide = false
-    end
-    for _, child in ipairs(model:GetDescendants()) do
-        if child:IsA("BasePart") then
-            child.CanCollide = false
-        end
-    end
-end
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 8)
 
---========================================================
--- 1. SPEED ENGINE
---========================================================
+---------------------------------------------------------
+-- Circular Floating Toggle Button
+---------------------------------------------------------
+local OpenButton = Instance.new("ImageButton")
+OpenButton.Name = "OpenButton"
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Position = UDim2.new(0, 15, 0.5, -25)
+OpenButton.Image = "rbxassetid://135995313313068"
+OpenButton.BackgroundTransparency = 1
+OpenButton.Active = true
+OpenButton.Draggable = true
+OpenButton.Parent = ScreenGui
 
-RunService.Heartbeat:Connect(function()
-    if not speedEnabled then return end
-    local char = player.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        if isProcessingEgg then
-            hum.WalkSpeed = math.min(lowSpeedVal, 60)
-        else
-            hum.WalkSpeed = isHighSpeedMode and highSpeedVal or lowSpeedVal
-        end
-    end
+local openCorner = Instance.new("UICorner", OpenButton)
+openCorner.CornerRadius = UDim.new(1, 0)
+
+local openStroke = Instance.new("UIStroke", OpenButton)
+openStroke.Color = Color3.fromRGB(150, 0, 255)
+openStroke.Thickness = 2
+
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
 end)
 
---========================================================
--- 2. ESP PLAYERS SYSTEM
---========================================================
+---------------------------------------------------------
+-- Top Header Logo, Title & Close Button
+---------------------------------------------------------
+local MainLogo = Instance.new("ImageLabel")
+MainLogo.Name = "MainLogo"
+MainLogo.Size = UDim2.new(0, 35, 0, 35)
+MainLogo.Position = UDim2.new(0, 10, 0, 8)
+MainLogo.Image = "rbxassetid://133870737244711"
+MainLogo.BackgroundTransparency = 1
+MainLogo.Parent = MainFrame
 
-local function createESP(targetPlayer)
-    if targetPlayer == player then return end
-    
-    local function applyHighlight(char)
-        if not char then return end
-        
-        local highlight = char:FindFirstChild("ESPHighlight")
-        if not highlight then
-            highlight = Instance.new("Highlight")
-            highlight.Name = "ESPHighlight"
-            highlight.FillColor = Color3.fromRGB(255, 50, 50)
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.FillTransparency = 0.5
-            highlight.OutlineTransparency = 0
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            highlight.Parent = char
-        end
-        highlight.Enabled = espEnabled
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 200, 0, 35)
+Title.Position = UDim2.new(0, 50, 0, 8)
+Title.Text = "JERRY v1.0"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+Title.BackgroundTransparency = 1
+Title.Parent = MainFrame
 
-        local head = char:WaitForChild("Head", 3)
-        if head and not head:FindFirstChild("ESPBillboard") then
-            local bb = Instance.new("BillboardGui")
-            bb.Name = "ESPBillboard"
-            bb.Size = UDim2.new(0, 100, 0, 30)
-            bb.StudsOffset = Vector3.new(0, 3, 0)
-            bb.AlwaysOnTop = true
-            bb.Parent = head
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -38, 0, 10)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 16
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Parent = MainFrame
 
-            local txt = Instance.new("TextLabel")
-            txt.Size = UDim2.new(1, 0, 1, 0)
-            txt.BackgroundTransparency = 1
-            txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-            txt.TextStrokeTransparency = 0
-            txt.Font = Enum.Font.GothamBold
-            txt.TextSize = 11
-            txt.Text = targetPlayer.Name
-            txt.Parent = bb
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
-            task.spawn(function()
-                while bb and bb.Parent and char and char:FindFirstChild("HumanoidRootPart") do
-                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        local dist = (player.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
-                        txt.Text = targetPlayer.Name .. " [" .. math.floor(dist) .. "m]"
-                    end
-                    bb.Enabled = espEnabled
-                    task.wait(0.2)
-                end
-            end)
-        end
-    end
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+end)
 
-    if targetPlayer.Character then
-        applyHighlight(targetPlayer.Character)
-    end
-    targetPlayer.CharacterAdded:Connect(applyHighlight)
+-- Sidebar Section
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 110, 1, -50)
+Sidebar.Position = UDim2.new(0, 0, 0, 50)
+Sidebar.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+-- Container for Pages
+local PageContainer = Instance.new("Frame")
+PageContainer.Size = UDim2.new(1, -125, 1, -60)
+PageContainer.Position = UDim2.new(0, 120, 0, 55)
+PageContainer.BackgroundTransparency = 1
+PageContainer.Parent = MainFrame
+
+-- Page Instances
+local HomePage = Instance.new("Frame", PageContainer)
+HomePage.Size = UDim2.new(1, 0, 1, 0)
+HomePage.BackgroundTransparency = 1
+HomePage.Visible = false
+
+local PlayerPage = Instance.new("Frame", PageContainer)
+PlayerPage.Size = UDim2.new(1, 0, 1, 0)
+PlayerPage.BackgroundTransparency = 1
+PlayerPage.Visible = false
+
+local InfoPage = Instance.new("Frame", PageContainer)
+InfoPage.Size = UDim2.new(1, 0, 1, 0)
+InfoPage.BackgroundTransparency = 1
+InfoPage.Visible = false
+
+local StealPage = Instance.new("Frame", PageContainer)
+StealPage.Size = UDim2.new(1, 0, 1, 0)
+StealPage.BackgroundTransparency = 1
+StealPage.Visible = true
+
+local EmotePage = Instance.new("Frame", PageContainer)
+EmotePage.Size = UDim2.new(1, 0, 1, 0)
+EmotePage.BackgroundTransparency = 1
+EmotePage.Visible = false
+
+local AnimPage = Instance.new("Frame", PageContainer)
+AnimPage.Size = UDim2.new(1, 0, 1, 0)
+AnimPage.BackgroundTransparency = 1
+AnimPage.Visible = false
+
+local function hideAllPages()
+    HomePage.Visible = false
+    PlayerPage.Visible = false
+    InfoPage.Visible = false
+    EmotePage.Visible = false
+    AnimPage.Visible = false
+    StealPage.Visible = false
 end
 
-local function toggleESP(state)
-    espEnabled = state
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then
-            createESP(p)
-            if p.Character then
-                local hl = p.Character:FindFirstChild("ESPHighlight")
-                if hl then hl.Enabled = espEnabled end
-            end
-        end
-    end
-end
-
-Players.PlayerAdded:Connect(function(p)
-    if espEnabled then
-        p.CharacterAdded:Connect(function()
-            task.wait(0.5)
-            createESP(p)
-        end)
-    end
-end)
-
---========================================================
--- 3. AUTO EGG & TITAN TEMPLE LOGIC
---========================================================
-
-local function findGlowingEgg()
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Highlight") or obj:IsA("SelectionBox") or obj:IsA("ParticleEmitter") then
-            local targetPart = obj.Parent
-            if targetPart and targetPart:IsA("BasePart") then
-                return targetPart
-            elseif targetPart and targetPart:IsA("Model") then
-                return targetPart.PrimaryPart or targetPart:FindFirstChildWhichIsA("BasePart")
-            end
-        end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while task.wait(0.15) do
-        if autoEggEnabled and not isProcessingEgg then
-            local glowingEgg = findGlowingEgg()
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            
-            if glowingEgg and root and hum then
-                isProcessingEgg = true
-                local targetPos = glowingEgg.Position
-                hum:MoveTo(targetPos)
-                
-                local moveTimeout = 0
-                repeat
-                    task.wait(0.05)
-                    moveTimeout = moveTimeout + 0.05
-                until (root.Position - targetPos).Magnitude <= 8 or moveTimeout >= 4 or not autoEggEnabled
-
-                if (root.Position - targetPos).Magnitude <= 10 and autoEggEnabled then
-                    disableCollisionForModel(glowingEgg.Parent)
-                    disableCollisionForModel(glowingEgg)
-                    hum:MoveTo(root.Position)
-                    task.wait(0.05)
-                    
-                    local prompt = glowingEgg:FindFirstChildOfClass("ProximityPrompt") 
-                        or glowingEgg.Parent:FindFirstChildOfClass("ProximityPrompt")
-                        or (glowingEgg.Parent and glowingEgg.Parent:FindFirstChildOfClass("ProximityPrompt"))
-                    
-                    if prompt then
-                        if fireproximityprompt then
-                            fireproximityprompt(prompt)
-                        else
-                            prompt:InputHoldBegin()
-                            task.wait(prompt.HoldDuration or 0.2)
-                            prompt:InputHoldEnd()
-                        end
-                    end
-                    
-                    task.wait(0.15)
-                    local spawnLocation = Workspace:FindFirstChild("SpawnLocation") or Workspace:FindFirstChild("Spawns")
-                    local targetCFrame = nil
-
-                    if spawnLocation then
-                        local spawnPart = spawnLocation:IsA("BasePart") and spawnLocation or spawnLocation:FindFirstChildWhichIsA("BasePart")
-                        if spawnPart then targetCFrame = spawnPart.CFrame + Vector3.new(0, 3, 0) end
-                    elseif savedCoords.pos then
-                        targetCFrame = savedCoords.pos
-                    end
-
-                    if targetCFrame then
-                        root.CFrame = targetCFrame
-                        task.wait(0.1)
-                        root.CFrame = targetCFrame
-                    end
-                end
-                task.wait(0.2)
-                isProcessingEgg = false
-            end
-        end
-    end
-end)
-
--- Titan Temple Auto Steal Loop
-task.spawn(function()
-    while task.wait(0.5) do
-        if autoStealTitan then
-            pcall(function()
-                for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("Model") and (obj.Name:find("Titan") or obj.Name:find("Monster")) then
-                        if obj:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.CFrame = obj.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-                            task.wait(0.2)
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Hungry Frog Event Loop (Infected/Parasite Eggs)
-task.spawn(function()
-    while task.wait(1) do
-        if autoFeedFrog then
-            pcall(function()
-                for _, egg in pairs(Workspace:GetDescendants()) do
-                    if egg.Name:find("Infected") or egg.Name:find("Parasite") then
-                        if egg:FindFirstChild("PrimaryPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            player.Character.HumanoidRootPart.CFrame = egg.PrimaryPart.CFrame
-                            task.wait(0.3)
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- God Mode / Guard Freeze Loop
-task.spawn(function()
-    while task.wait(0.5) do
-        if godModeEnabled then
-            pcall(function()
-                local char = player.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.Health = char.Humanoid.MaxHealth
-                end
-                for _, npc in pairs(Workspace:GetChildren()) do
-                    if npc.Name:find("Gorilla") or npc.Name:find("Guard") then
-                        if npc:FindFirstChild("HumanoidRootPart") then
-                            npc.HumanoidRootPart.Anchored = true
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---========================================================
--- 4. FLY LOGIC
---========================================================
-
-local function startFlying()
-    local char = player.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum then return end
-
-    hum.PlatformStand = true
-
-    flyBodyVel = Instance.new("BodyVelocity")
-    flyBodyVel.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    flyBodyVel.Velocity = Vector3.zero
-    flyBodyVel.Parent = root
-
-    flyBodyGyro = Instance.new("BodyGyro")
-    flyBodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-    flyBodyGyro.CFrame = root.CFrame
-    flyBodyGyro.Parent = root
-
-    task.spawn(function()
-        while flying and player.Character and root and hum do
-            local camCFrame = Workspace.CurrentCamera.CFrame
-            local moveDir = Vector3.zero
-
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camCFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camCFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camCFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
-
-            if moveDir.Magnitude > 0 then
-                flyBodyVel.Velocity = moveDir.Unit * flySpeed
-            else
-                flyBodyVel.Velocity = Vector3.zero
-            end
-
-            flyBodyGyro.CFrame = camCFrame
-            task.wait()
-        end
-
-        if flyBodyVel then flyBodyVel:Destroy() end
-        if flyBodyGyro then flyBodyGyro:Destroy() end
-        if hum then hum.PlatformStand = false end
-    end)
-end
-
-local function stopFlying()
-    flying = false
-    if player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = false end
-    end
-end
-
---========================================================
--- 5. GUI CREATION (5 TABS: SPEED, FLY, ESP, SERVERS, TITAN)
---========================================================
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "StealAnEggHub"
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local main = Instance.new("Frame")
-main.Size = UDim2.fromOffset(420, 330)
-main.Position = UDim2.fromOffset(100, 100)
-main.BackgroundColor3 = Color3.fromRGB(18, 19, 26)
-main.BorderSizePixel = 0
-main.Parent = gui
-
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
-
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(60, 65, 85)
-stroke.Thickness = 1.5
-stroke.Parent = main
-
--- Close Button (X)
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.fromOffset(26, 26)
-closeBtn.Position = UDim2.new(1, -32, 0, 6)
-closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 13
-closeBtn.ZIndex = 10
-closeBtn.Parent = main
-
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-
-closeBtn.MouseButton1Click:Connect(function()
-    stopFlying()
-    speedEnabled = false
-    autoEggEnabled = false
-    autoStealTitan = false
-    autoFeedFrog = false
-    godModeEnabled = false
-    toggleESP(false)
-    gui:Destroy()
-end)
-
--- Tab Bar (5 Tabs)
-local tabBar = Instance.new("Frame")
-tabBar.Size = UDim2.new(1, -45, 0, 35)
-tabBar.Position = UDim2.fromOffset(8, 8)
-tabBar.BackgroundColor3 = Color3.fromRGB(25, 27, 36)
-tabBar.Parent = main
-Instance.new("UICorner", tabBar).CornerRadius = UDim.new(0, 8)
-
-local tabs, pages = {}, {}
-
-local function createTab(name, pos, index)
+-- Tab Button Generator
+local function createTabBtn(name, pos, page)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.2, -2, 1, -4)
-    btn.Position = pos
-    btn.BackgroundColor3 = index == 1 and Color3.fromRGB(65, 105, 225) or Color3.fromRGB(35, 37, 48)
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.Position = UDim2.new(0, 5, 0, pos)
     btn.Text = name
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 8
-    btn.Parent = tabBar
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 15
+    btn.Parent = Sidebar
+    
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     
-    local page = Instance.new("Frame")
-    page.Size = UDim2.new(1, -20, 1, -60)
-    page.Position = UDim2.fromOffset(10, 50)
-    page.BackgroundTransparency = 1
-    page.Visible = (index == 1)
-    page.Parent = main
-    
-    tabs[index] = btn
-    pages[index] = page
-    
     btn.MouseButton1Click:Connect(function()
-        for i, pageObj in ipairs(pages) do
-            pageObj.Visible = (i == index)
-            tabs[i].BackgroundColor3 = (i == index) and Color3.fromRGB(65, 105, 225) or Color3.fromRGB(35, 37, 48)
-        end
+        hideAllPages()
+        page.Visible = true
     end)
-    
-    return page
 end
 
-local speedPage = createTab("⚡ SPEED", UDim2.new(0, 2, 0, 2), 1)
-local flyPage   = createTab("🕊️ FLY", UDim2.new(0.2, 0, 0, 2), 2)
-local espPage   = createTab("👁️ ESP", UDim2.new(0.4, -2, 0, 2), 3)
-local tpPage    = createTab("🌀 SERVERS", UDim2.new(0.6, -4, 0, 2), 4)
-local titanPage = createTab("🦖 TITAN", UDim2.new(0.8, -6, 0, 2), 5)
+createTabBtn("Steal", 10, StealPage)
+createTabBtn("Info", 50, InfoPage)
 
--- Dragging Logic
-local dragging, dragStart, startPos
-main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true; dragStart = input.Position; startPos = main.Position
-    end
-end)
-main.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
+---------------------------------------------------------
+-- PAGE: STEAL (UI PLACEHOLDER)
+---------------------------------------------------------
+local StealTitle = Instance.new("TextLabel", StealPage)
+StealTitle.Size = UDim2.new(1, -20, 0, 35)
+StealTitle.Position = UDim2.new(0, 10, 0, 10)
+StealTitle.BackgroundTransparency = 1
+StealTitle.Text = "Steal"
+StealTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+StealTitle.Font = Enum.Font.SourceSansBold
+StealTitle.TextSize = 20
+StealTitle.TextXAlignment = Enum.TextXAlignment.Left
 
---========================================================
--- TAB 1: SPEED & AUTO EGG
---========================================================
+local StealStatus = Instance.new("TextLabel", StealPage)
+StealStatus.Size = UDim2.new(1, -20, 0, 70)
+StealStatus.Position = UDim2.new(0, 10, 0, 55)
+StealStatus.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+StealStatus.Text = "Steal Function: Coming Soon"
+StealStatus.TextColor3 = Color3.fromRGB(190, 190, 190)
+StealStatus.Font = Enum.Font.SourceSans
+StealStatus.TextSize = 16
+StealStatus.Parent = StealPage
+Instance.new("UICorner", StealStatus).CornerRadius = UDim.new(0, 6)
 
-local walkToggle = Instance.new("TextButton")
-walkToggle.Size = UDim2.new(0.5, -5, 0, 32)
-walkToggle.Position = UDim2.fromOffset(0, 2)
-walkToggle.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-walkToggle.Text = "SPEED: OFF"
-walkToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-walkToggle.Font = Enum.Font.GothamBold
-walkToggle.TextSize = 11
-walkToggle.Parent = speedPage
-Instance.new("UICorner", walkToggle).CornerRadius = UDim.new(0, 8)
-
-local switchSpeedBtn = Instance.new("TextButton")
-switchSpeedBtn.Size = UDim2.new(0.5, -5, 0, 32)
-switchSpeedBtn.Position = UDim2.new(0.5, 5, 0, 2)
-switchSpeedBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 200)
-switchSpeedBtn.Text = "🔄 MODE: LOW (50)"
-switchSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-switchSpeedBtn.Font = Enum.Font.GothamBold
-switchSpeedBtn.TextSize = 9
-switchSpeedBtn.Parent = speedPage
-Instance.new("UICorner", switchSpeedBtn).CornerRadius = UDim.new(0, 8)
-
-local highSpeedInput = Instance.new("TextBox")
-highSpeedInput.Size = UDim2.new(0.5, -5, 0, 32)
-highSpeedInput.Position = UDim2.fromOffset(0, 38)
-highSpeedInput.BackgroundColor3 = Color3.fromRGB(32, 34, 45)
-highSpeedInput.Text = "240"
-highSpeedInput.PlaceholderText = "High Speed"
-highSpeedInput.TextColor3 = Color3.fromRGB(255, 80, 80)
-highSpeedInput.Font = Enum.Font.GothamBold
-highSpeedInput.TextSize = 11
-highSpeedInput.ClearTextOnFocus = false
-highSpeedInput.Parent = speedPage
-Instance.new("UICorner", highSpeedInput).CornerRadius = UDim.new(0, 8)
-
-local lowSpeedInput = Instance.new("TextBox")
-lowSpeedInput.Size = UDim2.new(0.5, -5, 0, 32)
-lowSpeedInput.Position = UDim2.new(0.5, 5, 0, 38)
-lowSpeedInput.BackgroundColor3 = Color3.fromRGB(32, 34, 45)
-lowSpeedInput.Text = "50"
-lowSpeedInput.PlaceholderText = "Low Speed"
-lowSpeedInput.TextColor3 = Color3.fromRGB(100, 255, 100)
-lowSpeedInput.Font = Enum.Font.GothamBold
-lowSpeedInput.TextSize = 11
-lowSpeedInput.ClearTextOnFocus = false
-lowSpeedInput.Parent = speedPage
-Instance.new("UICorner", lowSpeedInput).CornerRadius = UDim.new(0, 8)
-
-local autoEggBtn = Instance.new("TextButton")
-autoEggBtn.Size = UDim2.new(1, 0, 0, 38)
-autoEggBtn.Position = UDim2.fromOffset(0, 75)
-autoEggBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 160)
-autoEggBtn.Text = "🥚 SAFE AUTO EGG: OFF"
-autoEggBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoEggBtn.Font = Enum.Font.GothamBold
-autoEggBtn.TextSize = 10
-autoEggBtn.Parent = speedPage
-Instance.new("UICorner", autoEggBtn).CornerRadius = UDim.new(0, 8)
-
-walkToggle.MouseButton1Click:Connect(function()
-    speedEnabled = not speedEnabled
-    walkToggle.Text = speedEnabled and "SPEED: ON" or "SPEED: OFF"
-    walkToggle.BackgroundColor3 = speedEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(45, 50, 65)
+---------------------------------------------------------
+-- PAGE 1: HOME (HIDDEN / ORIGINAL FUNCTIONS KEPT)
+---------------------------------------------------------
+local function createToggleBtn(parent, text, pos, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.Position = UDim2.new(0, 0, 0, pos)
+    btn.Text = text .. " [OFF]"
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 15
+    btn.Parent = parent
     
-    if not speedEnabled and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-        player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
-    end
-end)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = text .. (state and " [ON]" or " [OFF]")
+        btn.BackgroundColor3 = state and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(45, 45, 45)
+        callback(state)
+    end)
+end
 
-switchSpeedBtn.MouseButton1Click:Connect(function()
-    isHighSpeedMode = not isHighSpeedMode
-    if isHighSpeedMode then
-        switchSpeedBtn.Text = "🔄 MODE: HIGH (" .. highSpeedVal .. ")"
-        switchSpeedBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 20)
+-- 1. Noclip Logic
+local noclipEnabled = false
+local noclipConnection = nil
+
+local function toggleNoclip(state)
+    noclipEnabled = state
+    if noclipEnabled then
+        if not noclipConnection then
+            noclipConnection = RunService.Stepped:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
     else
-        switchSpeedBtn.Text = "🔄 MODE: LOW (" .. lowSpeedVal .. ")"
-        switchSpeedBtn.BackgroundColor3 = Color3.fromRGB(40, 150, 200)
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part.Name == "HumanoidRootPart" or part.Name == "UpperTorso" or part.Name == "LowerTorso" or part.Name == "Torso" or part.Name == "Head" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
     end
-end)
+end
 
-highSpeedInput.FocusLost:Connect(function()
-    local num = tonumber(highSpeedInput.Text)
-    highSpeedVal = num and math.floor(num) or 240
-    highSpeedInput.Text = tostring(highSpeedVal)
-    if isHighSpeedMode then switchSpeedBtn.Text = "🔄 MODE: HIGH (" .. highSpeedVal .. ")" end
-end)
+createToggleBtn(HomePage, "Noclip", 0, toggleNoclip)
 
-lowSpeedInput.FocusLost:Connect(function()
-    local num = tonumber(lowSpeedInput.Text)
-    lowSpeedVal = num and math.floor(num) or 50
-    lowSpeedInput.Text = tostring(lowSpeedVal)
-    if not isHighSpeedMode then switchSpeedBtn.Text = "🔄 MODE: LOW (" .. lowSpeedVal .. ")" end
-end)
+-- 2. Fly Logic
+local flyEnabled = false
+local flySpeed = 50
+local flyConnection = nil
+local flyBV, flyBG
 
-autoEggBtn.MouseButton1Click:Connect(function()
-    autoEggEnabled = not autoEggEnabled
-    autoEggBtn.Text = autoEggEnabled and "🥚 SAFE AUTO EGG: ON" or "🥚 SAFE AUTO EGG: OFF"
-    autoEggBtn.BackgroundColor3 = autoEggEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(120, 40, 160)
-end)
-
---========================================================
--- TAB 2: FLY
---========================================================
-
-local flyToggle = Instance.new("TextButton")
-flyToggle.Size = UDim2.new(0.6, -5, 0, 45)
-flyToggle.Position = UDim2.fromOffset(0, 25)
-flyToggle.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-flyToggle.Text = "FLY: OFF"
-flyToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-flyToggle.Font = Enum.Font.GothamBold
-flyToggle.TextSize = 13
-flyToggle.Parent = flyPage
-Instance.new("UICorner", flyToggle).CornerRadius = UDim.new(0, 8)
-
-local flyInput = Instance.new("TextBox")
-flyInput.Size = UDim2.new(0.4, -5, 0, 45)
-flyInput.Position = UDim2.new(0.6, 5, 0, 25)
-flyInput.BackgroundColor3 = Color3.fromRGB(32, 34, 45)
-flyInput.Text = "80"
-flyInput.PlaceholderText = "Fly Speed"
-flyInput.TextColor3 = Color3.fromRGB(0, 220, 255)
-flyInput.Font = Enum.Font.GothamBold
-flyInput.TextSize = 14
-flyInput.ClearTextOnFocus = false
-flyInput.Parent = flyPage
-Instance.new("UICorner", flyInput).CornerRadius = UDim.new(0, 8)
-
-flyToggle.MouseButton1Click:Connect(function()
-    flying = not flying
-    if flying then startFlying() else stopFlying() end
-    flyToggle.Text = flying and "FLY: ON" or "FLY: OFF"
-    flyToggle.BackgroundColor3 = flying and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(45, 50, 65)
-end)
-
-flyInput.FocusLost:Connect(function()
-    local num = tonumber(flyInput.Text)
-    flySpeed = num or 80
-    flyInput.Text = tostring(flySpeed)
-end)
-
---========================================================
--- TAB 3: ESP PLAYERS
---========================================================
-
-local espToggle = Instance.new("TextButton")
-espToggle.Size = UDim2.new(1, 0, 0, 45)
-espToggle.Position = UDim2.fromOffset(0, 25)
-espToggle.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-espToggle.Text = "👁️ ESP PLAYERS: OFF"
-espToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-espToggle.Font = Enum.Font.GothamBold
-espToggle.TextSize = 12
-espToggle.Parent = espPage
-Instance.new("UICorner", espToggle).CornerRadius = UDim.new(0, 8)
-
-espToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    toggleESP(espEnabled)
-    espToggle.Text = espEnabled and "👁️ ESP PLAYERS: ON" or "👁️ ESP PLAYERS: OFF"
-    espToggle.BackgroundColor3 = espEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(45, 50, 65)
-end)
-
---========================================================
--- TAB 4: TELEPORT / SERVERS
---========================================================
-
-local btnSavePos = Instance.new("TextButton")
-btnSavePos.Size = UDim2.new(0.5, -5, 0, 32)
-btnSavePos.Position = UDim2.fromOffset(0, 2)
-btnSavePos.BackgroundColor3 = Color3.fromRGB(40, 110, 180)
-btnSavePos.Text = "📍 SAVE POS"
-btnSavePos.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnSavePos.Font = Enum.Font.GothamBold
-btnSavePos.TextSize = 11
-btnSavePos.Parent = tpPage
-Instance.new("UICorner", btnSavePos).CornerRadius = UDim.new(0, 8)
-
-local btnTpPos = Instance.new("TextButton")
-btnTpPos.Size = UDim2.new(0.5, -5, 0, 32)
-btnTpPos.Position = UDim2.new(0.5, 5, 0, 2)
-btnTpPos.BackgroundColor3 = Color3.fromRGB(180, 110, 40)
-btnTpPos.Text = "🌀 TP SAVED POS"
-btnTpPos.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnTpPos.Font = Enum.Font.GothamBold
-btnTpPos.TextSize = 11
-btnTpPos.Parent = tpPage
-Instance.new("UICorner", btnTpPos).CornerRadius = UDim.new(0, 8)
-
-local btn3Players = Instance.new("TextButton")
-btn3Players.Size = UDim2.new(1, 0, 0, 32)
-btn3Players.Position = UDim2.fromOffset(0, 40)
-btn3Players.BackgroundColor3 = Color3.fromRGB(130, 50, 160)
-btn3Players.Text = "👥 TP TO 3-PLAYER SERVER"
-btn3Players.TextColor3 = Color3.fromRGB(255, 255, 255)
-btn3Players.Font = Enum.Font.GothamBold
-btn3Players.TextSize = 11
-btn3Players.Parent = tpPage
-Instance.new("UICorner", btn3Players).CornerRadius = UDim.new(0, 8)
-
-local btnLowSpeed = Instance.new("TextButton")
-btnLowSpeed.Size = UDim2.new(1, 0, 0, 32)
-btnLowSpeed.Position = UDim2.fromOffset(0, 78)
-btnLowSpeed.BackgroundColor3 = Color3.fromRGB(200, 100, 30)
-btnLowSpeed.Text = "🎯 FIND SERVER (SPEED < 100M)"
-btnLowSpeed.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnLowSpeed.Font = Enum.Font.GothamBold
-btnLowSpeed.TextSize = 10
-btnLowSpeed.Parent = tpPage
-Instance.new("UICorner", btnLowSpeed).CornerRadius = UDim.new(0, 8)
-
-local tpStatus = Instance.new("TextLabel")
-tpStatus.Size = UDim2.new(1, 0, 0, 25)
-tpStatus.Position = UDim2.fromOffset(0, 120)
-tpStatus.BackgroundColor3 = Color3.fromRGB(26, 28, 38)
-tpStatus.Text = "Ready..."
-tpStatus.TextColor3 = Color3.fromRGB(170, 175, 190)
-tpStatus.Font = Enum.Font.Gotham
-tpStatus.TextSize = 10
-tpStatus.Parent = tpPage
-Instance.new("UICorner", tpStatus).CornerRadius = UDim.new(0, 6)
-
-btnSavePos.MouseButton1Click:Connect(function()
-    local char = player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        savedCoords.pos = char.HumanoidRootPart.CFrame
-        tpStatus.Text = "✅ Position Saved!"
-        tpStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+local function disableFly()
+    if flyBV then flyBV:Destroy() flyBV = nil end
+    if flyBG then flyBG:Destroy() flyBG = nil end
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+    
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.Velocity = Vector3.zero
     end
+end
+
+createToggleBtn(HomePage, "Fly", 45, function(state)
+    flyEnabled = state
+    
+    if not flyEnabled then
+        disableFly()
+        return
+    end
+
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if not hrp or not humanoid then return end
+
+    flyBV = Instance.new("BodyVelocity")
+    flyBV.Name = "FlyVelocity"
+    flyBV.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    flyBV.Velocity = Vector3.zero
+    flyBV.Parent = hrp
+
+    flyBG = Instance.new("BodyGyro")
+    flyBG.Name = "FlyGyro"
+    flyBG.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+    flyBG.CFrame = hrp.CFrame
+    flyBG.Parent = hrp
+
+    flyConnection = RunService.RenderStepped:Connect(function()
+        if not flyEnabled or not hrp or not hrp.Parent then
+            disableFly()
+            return
+        end
+
+        local cam = workspace.CurrentCamera
+        local moveDir = humanoid.MoveDirection
+
+        flyBG.CFrame = cam.CFrame
+
+        if moveDir.Magnitude > 0 then
+            local flyVector = (cam.CFrame.LookVector * moveDir.Z * -1) + (cam.CFrame.RightVector * moveDir.X)
+            flyBV.Velocity = flyVector * flySpeed
+        else
+            flyBV.Velocity = Vector3.zero
+        end
+    end)
 end)
 
-btnTpPos.MouseButton1Click:Connect(function()
-    local char = player.Character
-    if savedCoords.pos and char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = savedCoords.pos
-        tpStatus.Text = "⚡ Teleported!"
-        tpStatus.TextColor3 = Color3.fromRGB(100, 220, 255)
+LocalPlayer.CharacterAdded:Connect(function()
+    flyEnabled = false
+    disableFly()
+end)
+
+-- 3. ESP Box + Line Logic
+local espEnabled = false
+local espFolder = Instance.new("Folder")
+espFolder.Name = "ESP_Container_" .. math.random(1000, 9999)
+espFolder.Parent = ScreenGui
+
+local function removePlayerESP(plr)
+    if not espFolder then return end
+    local container = espFolder:FindFirstChild(plr.Name)
+    if container then
+        container:Destroy()
+    end
+end
+
+local function applyESP(plr)
+    if not espEnabled or plr == LocalPlayer or not plr.Character then return end
+    
+    local char = plr.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local myChar = LocalPlayer.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    
+    if not hrp or not myHRP then return end
+    
+    removePlayerESP(plr)
+
+    local pContainer = Instance.new("Folder")
+    pContainer.Name = plr.Name
+    pContainer.Parent = espFolder
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "ESPBox"
+    bb.Adornee = hrp
+    bb.Size = UDim2.new(4, 0, 5.5, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = pContainer
+
+    local boxFrame = Instance.new("Frame")
+    boxFrame.Size = UDim2.new(1, 0, 1, 0)
+    boxFrame.BackgroundTransparency = 1
+    boxFrame.Parent = bb
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 0, 0)
+    stroke.Thickness = 1.5
+    stroke.Parent = boxFrame
+
+    local myAttachment = myHRP:FindFirstChild("MyESPAttachment")
+    if not myAttachment then
+        myAttachment = Instance.new("Attachment")
+        myAttachment.Name = "MyESPAttachment"
+        myAttachment.Parent = myHRP
+    end
+
+    local targetAttachment = hrp:FindFirstChild("TargetESPAttachment")
+    if not targetAttachment then
+        targetAttachment = Instance.new("Attachment")
+        targetAttachment.Name = "TargetESPAttachment"
+        targetAttachment.Parent = hrp
+    end
+
+    local beam = Instance.new("Beam")
+    beam.Name = "ESPLine"
+    beam.Attachment0 = myAttachment
+    beam.Attachment1 = targetAttachment
+    beam.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
+    beam.Width0 = 0.05
+    beam.Width1 = 0.05
+    beam.FaceCamera = true
+    beam.Parent = pContainer
+end
+
+local function updateAllESP()
+    if not espFolder then return end
+    espFolder:ClearAllChildren()
+    if not espEnabled then return end
+    
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            applyESP(plr)
+        end
+    end
+end
+
+createToggleBtn(HomePage, "ESP Box Line", 90, function(state)
+    espEnabled = state
+    updateAllESP()
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if espEnabled then applyESP(plr) end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(removePlayerESP)
+
+for _, plr in pairs(Players:GetPlayers()) do
+    if plr ~= LocalPlayer then
+        plr.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if espEnabled then applyESP(plr) end
+        end)
+    end
+end
+
+-- 4. Anti-AFK Logic
+local VirtualUser = game:GetService("VirtualUser")
+local antiAFKConnection = nil
+
+createToggleBtn(HomePage, "Anti-AFK Infinity", 135, function(state)
+    if state then
+        antiAFKConnection = LocalPlayer.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
     else
-        tpStatus.Text = "❌ Save a position first!"
-        tpStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+            antiAFKConnection = nil
+        end
     end
 end)
 
-btn3Players.MouseButton1Click:Connect(function()
-    teleportTo3PlayerServer(tpStatus)
+-- 4. Spin 360° Logic
+local spinEnabled = false
+local spinConnection = nil
+
+local function toggleSpin360(state)
+    spinEnabled = state
+
+    if spinConnection then
+        spinConnection:Disconnect()
+        spinConnection = nil
+    end
+
+    if spinEnabled then
+        spinConnection = RunService.RenderStepped:Connect(function(dt)
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+
+            if root then
+                root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(360) * dt, 0)
+            end
+        end)
+    end
+end
+
+--// HOME PAGE
+createToggleBtn(HomePage, "🔄 Spin 360°", 315, function(state)
+    toggleSpin360(state)
+end)
+---------------------------------------------------------
+-- PAGE 2: PLAYER
+---------------------------------------------------------
+local PlayerScroll = Instance.new("ScrollingFrame")
+PlayerScroll.Size = UDim2.new(1, 0, 1, 0)
+PlayerScroll.BackgroundTransparency = 1
+PlayerScroll.BorderSizePixel = 0
+PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerScroll.ScrollBarThickness = 4
+PlayerScroll.Parent = PlayerPage
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = PlayerScroll
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
 end)
 
-btnLowSpeed.MouseButton1Click:Connect(function()
-    findLowSpeedServer(tpStatus)
+local function refreshPlayerList()
+    for _, item in pairs(PlayerScroll:GetChildren()) do
+        if item:IsA("Frame") then
+            item:Destroy()
+        end
+    end
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local Card = Instance.new("Frame")
+            Card.Size = UDim2.new(1, -10, 0, 50)
+            Card.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            Card.Parent = PlayerScroll
+            Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+
+            local Avatar = Instance.new("ImageLabel")
+            Avatar.Size = UDim2.new(0, 40, 0, 40)
+            Avatar.Position = UDim2.new(0, 5, 0, 5)
+            Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. plr.UserId .. "&w=150&h=150"
+            Avatar.BackgroundTransparency = 1
+            Avatar.Parent = Card
+            Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
+
+            local InfoText = Instance.new("TextLabel")
+            InfoText.Size = UDim2.new(1, -135, 1, 0)
+            InfoText.Position = UDim2.new(0, 50, 0, 0)
+            InfoText.Text = plr.DisplayName .. "\n(@" .. plr.Name .. ")"
+            InfoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            InfoText.TextXAlignment = Enum.TextXAlignment.Left
+            InfoText.BackgroundTransparency = 1
+            InfoText.Font = Enum.Font.SourceSans
+            InfoText.TextSize = 13
+            InfoText.TextTruncate = Enum.TextTruncate.AtEnd
+            InfoText.Parent = Card
+
+            local GoTo = Instance.new("TextButton")
+            GoTo.Size = UDim2.new(0, 70, 0, 30)
+            GoTo.Position = UDim2.new(1, -75, 0, 10)
+            GoTo.Text = "GoTo"
+            GoTo.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+            GoTo.TextColor3 = Color3.fromRGB(255, 255, 255)
+            GoTo.Font = Enum.Font.SourceSansBold
+            GoTo.TextSize = 14
+            GoTo.Parent = Card
+            Instance.new("UICorner", GoTo).CornerRadius = UDim.new(0, 6)
+
+            GoTo.MouseButton1Click:Connect(function()
+                if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = plr.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+                    end
+                end
+            end)
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(refreshPlayerList)
+refreshPlayerList()
+
+---------------------------------------------------------
+-- PAGE 3: INFO
+---------------------------------------------------------
+local MyAvatar = Instance.new("ImageLabel")
+MyAvatar.Size = UDim2.new(0, 85, 0, 85)
+MyAvatar.Position = UDim2.new(0, 0, 0, 10)
+MyAvatar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MyAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=150&h=150"
+MyAvatar.Parent = InfoPage
+Instance.new("UICorner", MyAvatar).CornerRadius = UDim.new(0, 8)
+
+local MyInfoText = Instance.new("TextLabel")
+MyInfoText.Size = UDim2.new(1, -95, 0, 85)
+MyInfoText.Position = UDim2.new(0, 95, 0, 10)
+MyInfoText.Text = "Username: " .. LocalPlayer.Name .. "\nNickname: " .. LocalPlayer.DisplayName .. "\nAccount ID: " .. LocalPlayer.UserId
+MyInfoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+MyInfoText.TextXAlignment = Enum.TextXAlignment.Left
+MyInfoText.TextYAlignment = Enum.TextYAlignment.Top
+MyInfoText.BackgroundTransparency = 1
+MyInfoText.Font = Enum.Font.SourceSans
+MyInfoText.TextSize = 16
+MyInfoText.Parent = InfoPage
+
+---------------------------------------------------------
+-- PAGE 4: EMOTES
+---------------------------------------------------------
+local currentTrack = nil
+
+local function playEmote(animId)
+    local char = LocalPlayer.Character
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+    
+    if animator then
+        if currentTrack then
+            currentTrack:Stop()
+        end
+        
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. tostring(animId)
+        
+        currentTrack = animator:LoadAnimation(anim)
+        currentTrack:Play()
+    end
+end
+
+local StopEmoteBtn = Instance.new("TextButton")
+StopEmoteBtn.Size = UDim2.new(1, 0, 0, 30)
+StopEmoteBtn.Position = UDim2.new(0, 0, 0, 0)
+StopEmoteBtn.Text = "Stop Emote"
+StopEmoteBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+StopEmoteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopEmoteBtn.Font = Enum.Font.SourceSansBold
+StopEmoteBtn.TextSize = 14
+StopEmoteBtn.Parent = EmotePage
+Instance.new("UICorner", StopEmoteBtn).CornerRadius = UDim.new(0, 6)
+
+StopEmoteBtn.MouseButton1Click:Connect(function()
+    if currentTrack then
+        currentTrack:Stop()
+        currentTrack = nil
+    end
 end)
 
---========================================================
--- TAB 5: TITAN TEMPLE & HUNGRY FROG EVENT
---========================================================
+local EmoteScroll = Instance.new("ScrollingFrame")
+EmoteScroll.Size = UDim2.new(1, 0, 1, -38)
+EmoteScroll.Position = UDim2.new(0, 0, 0, 38)
+EmoteScroll.BackgroundTransparency = 1
+EmoteScroll.BorderSizePixel = 0
+EmoteScroll.ScrollBarThickness = 4
+EmoteScroll.Parent = EmotePage
 
-local autoTitanBtn = Instance.new("TextButton")
-autoTitanBtn.Size = UDim2.new(1, 0, 0, 32)
-autoTitanBtn.Position = UDim2.fromOffset(0, 2)
-autoTitanBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 100)
-autoTitanBtn.Text = "🦖 AUTO TITAN TEMPLE: OFF"
-autoTitanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoTitanBtn.Font = Enum.Font.GothamBold
-autoTitanBtn.TextSize = 10
-autoTitanBtn.Parent = titanPage
-Instance.new("UICorner", autoTitanBtn).CornerRadius = UDim.new(0, 8)
+local UIGrid = Instance.new("UIGridLayout")
+UIGrid.CellSize = UDim2.new(0, 105, 0, 35)
+UIGrid.CellPadding = UDim2.new(0, 8, 0, 8)
+UIGrid.Parent = EmoteScroll
 
-local autoFrogBtn = Instance.new("TextButton")
-autoFrogBtn.Size = UDim2.new(1, 0, 0, 32)
-autoFrogBtn.Position = UDim2.fromOffset(0, 38)
-autoFrogBtn.BackgroundColor3 = Color3.fromRGB(60, 140, 60)
-autoFrogBtn.Text = "🐸 AUTO INFECTED EGGS (FROG): OFF"
-autoFrogBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoFrogBtn.Font = Enum.Font.GothamBold
-autoFrogBtn.TextSize = 10
-autoFrogBtn.Parent = titanPage
-Instance.new("UICorner", autoFrogBtn).CornerRadius = UDim.new(0, 8)
-
-local godModeBtn = Instance.new("TextButton")
-godModeBtn.Size = UDim2.new(1, 0, 0, 32)
-godModeBtn.Position = UDim2.fromOffset(0, 74)
-godModeBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 50)
-godModeBtn.Text = "🛡️ FREEZE GUARDS / GORILLA KING: OFF"
-godModeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-godModeBtn.Font = Enum.Font.GothamBold
-godModeBtn.TextSize = 9
-godModeBtn.Parent = titanPage
-Instance.new("UICorner", godModeBtn).CornerRadius = UDim.new(0, 8)
-
-autoTitanBtn.MouseButton1Click:Connect(function()
-    autoStealTitan = not autoStealTitan
-    autoTitanBtn.Text = autoStealTitan and "🦖 AUTO TITAN TEMPLE: ON" or "🦖 AUTO TITAN TEMPLE: OFF"
-    autoTitanBtn.BackgroundColor3 = autoStealTitan and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(150, 50, 100)
+UIGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    EmoteScroll.CanvasSize = UDim2.new(0, 0, 0, UIGrid.AbsoluteContentSize.Y + 10)
 end)
 
-autoFrogBtn.MouseButton1Click:Connect(function()
-    autoFeedFrog = not autoFeedFrog
-    autoFrogBtn.Text = autoFeedFrog and "🐸 AUTO INFECTED EGGS (FROG): ON" or "🐸 AUTO INFECTED EGGS (FROG): OFF"
-    autoFrogBtn.BackgroundColor3 = autoFeedFrog and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(60, 140, 60)
+local emoteList = {
+    {Name = "Coming Soon", ID = 5915773155},
+}
+
+for _, data in ipairs(emoteList) do
+    local btn = Instance.new("TextButton")
+    btn.Text = data.Name
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 13
+    btn.Parent = EmoteScroll
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    btn.MouseButton1Click:Connect(function()
+        playEmote(data.ID)
+    end)
+end
+
+---------------------------------------------------------
+-- PAGE 5: ANIMATION PACKS (ANIMATE SCRIPT)
+-- Uses Roblox's documented Zombie animation assets and the character's
+-- existing Animate script. This avoids HumanoidDescription changes.
+
+local localPlayer = game:GetService("Players").LocalPlayer
+
+local AnimationPacks = {
+    Zombie = {
+        Idle     = "rbxassetid://616158929",
+        Idle2    = "rbxassetid://616160636",
+        Walk     = "rbxassetid://616168032",
+        Run      = "rbxassetid://616163682",
+        Jump     = "rbxassetid://616161997",
+        Fall     = "rbxassetid://616157476",
+        Climb    = "rbxassetid://616156119",
+        Swim     = "rbxassetid://616165109",
+        SwimIdle = "rbxassetid://616166655",
+    },
+
+    -- adidas Community Animation Pack
+    -- adidas Community
+    -- These are the actual animation asset IDs behind the catalog items.
+    AdidasCommunity = {
+        Idle     = "rbxassetid://122257458498464",
+        Idle2    = "rbxassetid://122257458498464",
+        Walk     = "rbxassetid://122150855457006",
+        Run      = "rbxassetid://82598234841035",
+        Jump     = "rbxassetid://75290611992385",
+        Fall     = "rbxassetid://98600215928904",
+        Climb    = "rbxassetid://88763136693023",
+        Swim     = "rbxassetid://133308483266208",
+        SwimIdle = "rbxassetid://133308483266208",
+    }
+}
+local zombieAnimationEnabled = false
+local respawnConnection = nil
+
+local function setAnimationId(parent, childName, animationId)
+    local obj = parent and parent:FindFirstChild(childName)
+    if obj and obj:IsA("Animation") then
+        obj.AnimationId = animationId
+        return true
+    end
+    return false
+end
+
+local function stopCurrentAnimations(humanoid)
+    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            track:Stop(0.08)
+        end
+    end
+end
+
+local function applyAnimationPack(character, pack)
+    if not character or not character.Parent or not pack then
+        return false
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local animate = character:FindFirstChild("Animate")
+    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+
+    if not humanoid or not animator then
+        return false
+    end
+
+    -- Stop/remove our previous controller.
+    local oldFolder = character:FindFirstChild("__JerryAnimationPack")
+    if oldFolder then
+        oldFolder:Destroy()
+    end
+
+    -- Disable Roblox's default Animate while this pack is active.
+    if animate then
+        animate.Enabled = false
+    end
+
+    local folder = Instance.new("Folder")
+    folder.Name = "__JerryAnimationPack"
+    folder.Parent = character
+
+    local tracks = {}
+    local function load(name, id, priority, looped)
+        if not id or id == "" then return end
+
+        local anim = Instance.new("Animation")
+        anim.Name = name
+        anim.AnimationId = id
+        anim.Parent = folder
+
+        local ok, track = pcall(function()
+            return animator:LoadAnimation(anim)
+        end)
+
+        if ok and track then
+            track.Priority = priority
+            track.Looped = looped
+            tracks[name] = track
+        end
+    end
+
+    load("Idle", pack.Idle, Enum.AnimationPriority.Idle, true)
+    load("Walk", pack.Walk, Enum.AnimationPriority.Movement, true)
+    load("Run", pack.Run or pack.Walk, Enum.AnimationPriority.Movement, true)
+    load("Jump", pack.Jump, Enum.AnimationPriority.Movement, false)
+    load("Fall", pack.Fall, Enum.AnimationPriority.Movement, true)
+    load("Climb", pack.Climb, Enum.AnimationPriority.Movement, true)
+    load("Swim", pack.Swim, Enum.AnimationPriority.Movement, true)
+    load("SwimIdle", pack.SwimIdle or pack.Swim, Enum.AnimationPriority.Movement, true)
+
+    local current
+    local stateConnection
+    local runningConnection
+
+    local function stopAll(fade)
+        for _, track in pairs(tracks) do
+            if track.IsPlaying then
+                track:Stop(fade or 0.12)
+            end
+        end
+    end
+
+    local function play(name, speed)
+        local track = tracks[name]
+        if not track then return end
+
+        if current ~= track then
+            stopAll(0.12)
+            current = track
+            track:Play(0.12, 1, speed or 1)
+        elseif speed then
+            track:AdjustSpeed(speed)
+        end
+    end
+
+    local function update()
+        local state = humanoid:GetState()
+        local moving = humanoid.MoveDirection.Magnitude > 0.05
+        local speed = humanoid.WalkSpeed
+
+        if state == Enum.HumanoidStateType.Jumping then
+            play("Jump", 1)
+        elseif state == Enum.HumanoidStateType.Freefall then
+            play("Fall", 1)
+        elseif state == Enum.HumanoidStateType.Climbing then
+            play("Climb", math.max(speed / 8, 0.5))
+        elseif state == Enum.HumanoidStateType.Swimming then
+            if moving then
+                play("Swim", math.max(speed / 8, 0.5))
+            else
+                play("SwimIdle", 1)
+            end
+        elseif moving then
+            -- adidas uses a distinct skate-style walk/run.
+            if speed >= 14 and tracks.Run then
+                play("Run", math.max(speed / 16, 0.5))
+            else
+                play("Walk", math.max(speed / 8, 0.5))
+            end
+        else
+            play("Idle", 1)
+        end
+    end
+
+    stateConnection = humanoid.StateChanged:Connect(function()
+        task.defer(update)
+    end)
+
+    runningConnection = humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function()
+        task.defer(update)
+    end)
+
+    -- Clean up automatically if the character is removed.
+    local ancestryConnection
+    ancestryConnection = character.AncestryChanged:Connect(function(_, parent)
+        if parent then return end
+
+        if animationControllerCleanup then
+            pcall(animationControllerCleanup)
+            animationControllerCleanup = nil
+        end
+    end)
+
+    animationControllerCleanup = function()
+        if stateConnection then
+            stateConnection:Disconnect()
+            stateConnection = nil
+        end
+
+        if runningConnection then
+            runningConnection:Disconnect()
+            runningConnection = nil
+        end
+
+        if ancestryConnection then
+            ancestryConnection:Disconnect()
+            ancestryConnection = nil
+        end
+
+        for _, track in pairs(tracks) do
+            pcall(function()
+                track:Stop(0.08)
+                track:Destroy()
+            end)
+        end
+
+        current = nil
+    end
+
+    update()
+    return next(tracks) ~= nil
+end
+
+local activeAnimationPack = nil
+
+local function applyZombieAnimation(character)
+    activeAnimationPack = "Zombie"
+    return applyAnimationPack(character, AnimationPacks.Zombie)
+end
+
+local function resetAnimations(character)
+    if not character or not character.Parent then return end
+
+    -- Fully stop Jerry's custom animation controller.
+    if animationControllerCleanup then
+        pcall(animationControllerCleanup)
+        animationControllerCleanup = nil
+    end
+
+    local animate = character:FindFirstChild("Animate")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local packFolder = character:FindFirstChild("__JerryAnimationPack")
+
+    if humanoid then
+        stopCurrentAnimations(humanoid)
+    end
+
+    if packFolder then
+        packFolder:Destroy()
+    end
+
+    -- Restore Roblox's normal Animate controller.
+    if animate then
+        animate.Enabled = false
+        task.wait(0.1)
+        animate.Enabled = true
+        task.wait(0.15)
+    end
+end
+
+local function setupAnimationOnCharacter(character)
+    if not zombieAnimationEnabled or not activeAnimationPack then
+        return
+    end
+
+    local animate = character:WaitForChild("Animate", 5)
+    if not animate then return end
+
+    task.wait(0.1)
+    applyAnimationPack(character, AnimationPacks[activeAnimationPack])
+end
+
+-- Re-apply Zombie animations after every respawn.
+if respawnConnection then
+    respawnConnection:Disconnect()
+end
+
+respawnConnection = localPlayer.CharacterAdded:Connect(function(character)
+    setupAnimationOnCharacter(character)
 end)
 
-godModeBtn.MouseButton1Click:Connect(function()
-    godModeEnabled = not godModeEnabled
-    godModeBtn.Text = godModeEnabled and "🛡️ FREEZE GUARDS / GORILLA KING: ON" or "🛡️ FREEZE GUARDS / GORILLA KING: OFF"
-    godModeBtn.BackgroundColor3 = godModeEnabled and Color3.fromRGB(45, 170, 90) or Color3.fromRGB(200, 70, 50)
+-- Reset / Default Animation button
+local ResetAnimBtn = Instance.new("TextButton")
+ResetAnimBtn.Size = UDim2.new(1, 0, 0, 30)
+ResetAnimBtn.Position = UDim2.new(0, 0, 0, 0)
+ResetAnimBtn.Text = "Reset Animation (Default)"
+ResetAnimBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ResetAnimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ResetAnimBtn.Font = Enum.Font.SourceSansBold
+ResetAnimBtn.TextSize = 14
+ResetAnimBtn.Parent = AnimPage
+Instance.new("UICorner", ResetAnimBtn).CornerRadius = UDim.new(0, 6)
+
+ResetAnimBtn.MouseButton1Click:Connect(function()
+    zombieAnimationEnabled = false
+    activeAnimationPack = nil
+
+    local character = localPlayer.Character
+    if character then
+        resetAnimations(character)
+    end
 end)
+
+-- Scrolling Frame for Animation Packs
+local AnimScroll = Instance.new("ScrollingFrame")
+AnimScroll.Size = UDim2.new(1, 0, 1, -38)
+AnimScroll.Position = UDim2.new(0, 0, 0, 38)
+AnimScroll.BackgroundTransparency = 1
+AnimScroll.BorderSizePixel = 0
+AnimScroll.ScrollBarThickness = 4
+AnimScroll.Parent = AnimPage
+
+local AnimGrid = Instance.new("UIGridLayout")
+AnimGrid.CellSize = UDim2.new(0, 105, 0, 35)
+AnimGrid.CellPadding = UDim2.new(0, 8, 0, 8)
+AnimGrid.Parent = AnimScroll
+
+AnimGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    AnimScroll.CanvasSize = UDim2.new(0, 0, 0, AnimGrid.AbsoluteContentSize.Y + 10)
+end)
+
+for packName, _ in pairs(AnimationPacks) do
+    local btn = Instance.new("TextButton")
+    btn.Text = packName
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 13
+    btn.Parent = AnimScroll
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    btn.MouseButton1Click:Connect(function()
+        zombieAnimationEnabled = true
+        activeAnimationPack = packName
+
+        local character = localPlayer.Character
+        if character then
+            applyAnimationPack(character, AnimationPacks[packName])
+        end
+    end)
+end
