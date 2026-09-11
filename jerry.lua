@@ -50,10 +50,18 @@ end)
 ---------------------------------------------------------
 -- Top Header Logo, Title & Close Button
 ---------------------------------------------------------
+local MainLogo = Instance.new("ImageLabel")
+MainLogo.Name = "MainLogo"
+MainLogo.Size = UDim2.new(0, 35, 0, 35)
+MainLogo.Position = UDim2.new(0, 10, 0, 8)
+MainLogo.Image = "rbxassetid://133870737244711"
+MainLogo.BackgroundTransparency = 1
+MainLogo.Parent = MainFrame
+
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0, 200, 0, 35)
 Title.Position = UDim2.new(0, 50, 0, 8)
-Title.Text = "JERRY v1.0 (Auto Steal)"
+Title.Text = "JERRY v1.0 (Smart Steal)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
@@ -133,22 +141,22 @@ createTabBtn("Info", 10, InfoPage)
 createTabBtn("Steal", 50, StealPage)
 
 ---------------------------------------------------------
--- PAGE: STEAL & AUTO STEAL (Advanced Logic)
+-- PAGE: STEAL & SMART AUTO STEAL CONTROLS
 ---------------------------------------------------------
 local StealTitle = Instance.new("TextLabel", StealPage)
 StealTitle.Size = UDim2.new(1, -20, 0, 35)
 StealTitle.Position = UDim2.new(0, 10, 0, 10)
 StealTitle.BackgroundTransparency = 1
-StealTitle.Text = "Auto Steal Controls"
+StealTitle.Text = "Smart Auto Steal"
 StealTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 StealTitle.Font = Enum.Font.SourceSansBold
 StealTitle.TextSize = 18
 StealTitle.TextXAlignment = Enum.TextXAlignment.Left
 
--- 1. Prompt 0.0s Toggle Frame
+-- 1. Prompt 0.0s Toggle
 local PromptFrame = Instance.new("Frame", StealPage)
-PromptFrame.Size = UDim2.new(1, -20, 0, 45)
-PromptFrame.Position = UDim2.new(0, 10, 0, 50)
+PromptFrame.Size = UDim2.new(1, -20, 0, 40)
+PromptFrame.Position = UDim2.new(0, 10, 0, 45)
 PromptFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Instance.new("UICorner", PromptFrame).CornerRadius = UDim.new(0, 6)
 
@@ -163,16 +171,16 @@ PromptLabel.TextSize = 14
 PromptLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local PromptToggle = Instance.new("TextButton", PromptFrame)
-PromptToggle.Size = UDim2.new(0, 45, 0, 24)
-PromptToggle.Position = UDim2.new(1, -55, 0.5, -12)
+PromptToggle.Size = UDim2.new(0, 40, 0, 22)
+PromptToggle.Position = UDim2.new(1, -50, 0.5, -11)
 PromptToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 PromptToggle.Text = ""
 Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(1, 0)
 
--- 2. Auto Steal Toggle Frame
+-- 2. Smart Auto Steal Toggle
 local AutoStealFrame = Instance.new("Frame", StealPage)
-AutoStealFrame.Size = UDim2.new(1, -20, 0, 45)
-AutoStealFrame.Position = UDim2.new(0, 10, 0, 105)
+AutoStealFrame.Size = UDim2.new(1, -20, 0, 40)
+AutoStealFrame.Position = UDim2.new(0, 10, 0, 95)
 AutoStealFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Instance.new("UICorner", AutoStealFrame).CornerRadius = UDim.new(0, 6)
 
@@ -180,39 +188,58 @@ local AutoStealLabel = Instance.new("TextLabel", AutoStealFrame)
 AutoStealLabel.Size = UDim2.new(1, -70, 1, 0)
 AutoStealLabel.Position = UDim2.new(0, 12, 0, 0)
 AutoStealLabel.BackgroundTransparency = 1
-AutoStealLabel.Text = "Auto Steal Good Eggs"
+AutoStealLabel.Text = "Auto Steal & Swap Better"
 AutoStealLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoStealLabel.Font = Enum.Font.SourceSansBold
 AutoStealLabel.TextSize = 14
 AutoStealLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local AutoStealToggle = Instance.new("TextButton", AutoStealFrame)
-AutoStealToggle.Size = UDim2.new(0, 45, 0, 24)
-AutoStealToggle.Position = UDim2.new(1, -55, 0.5, -12)
+AutoStealToggle.Size = UDim2.new(0, 40, 0, 22)
+AutoStealToggle.Position = UDim2.new(1, -50, 0.5, -11)
 AutoStealToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 AutoStealToggle.Text = ""
 Instance.new("UICorner", AutoStealToggle).CornerRadius = UDim.new(1, 0)
 
 local StatusLabel = Instance.new("TextLabel", StealPage)
 StatusLabel.Size = UDim2.new(1, -20, 0, 30)
-StatusLabel.Position = UDim2.new(0, 10, 0, 155)
+StatusLabel.Position = UDim2.new(0, 10, 0, 145)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Status: OFF"
 StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 StatusLabel.Font = Enum.Font.SourceSans
-StatusLabel.TextSize = 14
+StatusLabel.TextSize = 13
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- Logic Implementation
+---------------------------------------------------------
+-- LOGIC & FUNCTIONS
+---------------------------------------------------------
 local PromptEnabled = false
 local AutoStealEnabled = false
 local originalHoldDurations = {}
+local promptConnection = nil
+
+-- Rank Rarity for comparison
+local function getEggTier(rarity)
+    local tiers = {
+        ["Common"] = 1,
+        ["Uncommon"] = 2,
+        ["Rare"] = 3,
+        ["Epic"] = 4,
+        ["Legendary"] = 5,
+        ["Mythic"] = 6,
+        ["Divine"] = 7,
+        ["Eternal"] = 8
+    }
+    return tiers[rarity] or 0
+end
 
 PromptToggle.MouseButton1Click:Connect(function()
     PromptEnabled = not PromptEnabled
     PromptToggle.BackgroundColor3 = PromptEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(70, 70, 70)
     
     if PromptEnabled then
+        -- Set existing prompts
         for _, v in ipairs(Workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
                 if not originalHoldDurations[v] then
@@ -221,7 +248,21 @@ PromptToggle.MouseButton1Click:Connect(function()
                 v.HoldDuration = 0
             end
         end
+        
+        -- Listen for newly spawned or dropped prompts automatically
+        promptConnection = Workspace.DescendantAdded:Connect(function(v)
+            if PromptEnabled and v:IsA("ProximityPrompt") then
+                if not originalHoldDurations[v] then
+                    originalHoldDurations[v] = v.HoldDuration
+                end
+                v.HoldDuration = 0
+            end
+        end)
     else
+        if promptConnection then
+            promptConnection:Disconnect()
+            promptConnection = nil
+        end
         for v, orig in pairs(originalHoldDurations) do
             if v and v.Parent then v.HoldDuration = orig end
         end
@@ -231,12 +272,10 @@ end)
 AutoStealToggle.MouseButton1Click:Connect(function()
     AutoStealEnabled = not AutoStealEnabled
     AutoStealToggle.BackgroundColor3 = AutoStealEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(70, 70, 70)
-    StatusLabel.Text = AutoStealEnabled and "Status: RUNNING (Scanning Zones & Avoiding Guards)" or "Status: OFF"
+    StatusLabel.Text = AutoStealEnabled and "Status: RUNNING (Guards Safe & Swapping)" or "Status: OFF"
 end)
 
--- Guard & Area Scanning Loop (Covers Desert, Prehistoric, Titan Temple, Cosmic)
-local GUARD_RANGE = 300
-
+-- Guard Checking (300 studs distance)
 local function isGuardNearby(myPos)
     local objFolder = Workspace:FindFirstChild("__OBJECTS")
     if not objFolder then return false end
@@ -246,18 +285,33 @@ local function isGuardNearby(myPos)
     for _, area in ipairs(areas:GetChildren()) do
         local guardAreas = area:FindFirstChild("GuardAreas")
         if guardAreas then
-            for _, guard in ipairs(guardAreas:GetDescendants()) do
-                if guard:IsA("BasePart") then
-                    if (myPos - guard.Position).Magnitude <= GUARD_RANGE then
-                        return true
+            pcall(function()
+                for _, guard in ipairs(guardAreas:GetDescendants()) do
+                    if guard:IsA("BasePart") then
+                        if (myPos - guard.Position).Magnitude <= 300 then
+                            return true
+                        end
                     end
                 end
-            end
+            end)
         end
     end
     return false
 end
 
+-- Drop current held egg tool
+local function dropCurrentEgg()
+    local char = LocalPlayer.Character
+    if char then
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") then
+                tool.Parent = Workspace
+            end
+        end
+    end
+end
+
+-- Main Smart Auto Steal & Swap Loop
 task.spawn(function()
     while task.wait(0.4) do
         if AutoStealEnabled then
@@ -265,24 +319,49 @@ task.spawn(function()
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local root = char.HumanoidRootPart
                 
-                -- Check guards before taking action
                 if not isGuardNearby(root.Position) then
+                    -- Check current tier in hand
+                    local currentTier = 0
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            local rarityAttr = tool:GetAttribute("Rarity") or "Common"
+                            currentTier = getEggTier(rarityAttr)
+                        end
+                    end
+                    
                     local objFolder = Workspace:FindFirstChild("__OBJECTS")
                     local areas = objFolder and objFolder:FindFirstChild("Areas")
                     
                     if areas then
+                        local foundBetter = false
                         for _, area in ipairs(areas:GetChildren()) do
                             local eggsContainer = area:FindFirstChild("Eggs") or area
                             for _, egg in ipairs(eggsContainer:GetChildren()) do
-                                local rarity = egg:GetAttribute("Rarity") or ""
-                                -- Target high-tier or good eggs automatically
-                                if rarity == "Legendary" or rarity == "Mythic" or rarity == "Divine" or rarity == "Eternal" or rarity == "Epic" then
+                                local rarity = egg:GetAttribute("Rarity") or "Common"
+                                local targetTier = getEggTier(rarity)
+                                
+                                -- If map egg is better than what we are holding
+                                if targetTier > currentTier then
                                     local prompt = egg:FindFirstChildWhichIsA("ProximityPrompt", true)
-                                    if prompt then
+                                    local targetPart = egg:IsA("Model") and egg.PrimaryPart or egg
+                                    
+                                    if prompt and targetPart and targetPart:IsA("BasePart") then
+                                        if currentTier > 0 then
+                                            dropCurrentEgg()
+                                            task.wait(0.15)
+                                        end
+                                        
+                                        -- Teleport & Steal
+                                        root.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                                        task.wait(0.1)
                                         fireproximityprompt(prompt)
+                                        foundBetter = true
+                                        task.wait(0.3)
+                                        break
                                     end
                                 end
                             end
+                            if foundBetter then break end
                         end
                     end
                 else
