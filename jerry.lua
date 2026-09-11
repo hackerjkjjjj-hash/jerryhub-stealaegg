@@ -1,6 +1,8 @@
---// JERRY v1.0 - Custom IDs + Ultra Top Layer (Above Roblox Logo & Menu)
---// Button Logo: 135995313313068
+--// JERRY v1.0 - Custom Page Icons & Ultra Top Layer
+--// Floating Button: 135995313313068
 --// Main Logo: 133870737244711
+--// Steal Page Logo: 102182705518322
+--// Info Page Logo: 87608274860948
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,7 +11,7 @@ local CoreGui = game:GetService("CoreGui")
 
 local Player = Players.LocalPlayer
 
---// ScreenGui (ប្រើប្រាស់ gethui ឬ CoreGui ដើម្បីให้อยู่เหนือ Logo និង Menu Roblox ដាច់ខាត)
+--// ScreenGui (ប្រើប្រាស់ gethui ឬ CoreGui ដើម្បីใหើយู่เหนือ Logo និង Menu Roblox ដាច់ខាត)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "JERRY_UI"
 ScreenGui.ResetOnSpawn = false
@@ -37,7 +39,7 @@ OpenButton.Size = UDim2.new(0, 50, 0, 50)
 OpenButton.Position = UDim2.new(0, 20, 0.5, -25)
 OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 OpenButton.BackgroundTransparency = 0.2
-OpenButton.Image = "rbxassetid://135995313313068" -- ID ថ្មីរបស់អ្នក
+OpenButton.Image = "rbxassetid://135995313313068"
 OpenButton.Active = true
 OpenButton.Draggable = true
 OpenButton.ScaleType = Enum.ScaleType.Fit
@@ -96,7 +98,7 @@ MainLogo.Name = "MainLogo"
 MainLogo.Size = UDim2.new(0, 45, 0, 45)
 MainLogo.Position = UDim2.new(0, 12, 0, 10)
 MainLogo.BackgroundTransparency = 1
-MainLogo.Image = "rbxassetid://133870737244711" -- ID ថ្មីរបស់អ្នក
+MainLogo.Image = "rbxassetid://133870737244711"
 MainLogo.ScaleType = Enum.ScaleType.Fit
 MainLogo.ZIndex = 10002
 MainLogo.Parent = TopBar
@@ -106,7 +108,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0, 300, 0, 30)
 Title.Position = UDim2.new(0, 68, 0, 8)
 Title.BackgroundTransparency = 1
-Title.Text = "JERRY v1.0"
+Title.Text = "OLIVER v1.0"
 Title.TextColor3 = Color3.fromRGB(245,245,255)
 Title.TextSize = 20
 Title.Font = Enum.Font.GothamBold
@@ -118,7 +120,7 @@ local Subtitle = Instance.new("TextLabel")
 Subtitle.Size = UDim2.new(0, 250, 0, 20)
 Subtitle.Position = UDim2.new(0, 69, 0, 36)
 Subtitle.BackgroundTransparency = 1
-Subtitle.Text = "Smart Steal & Instant Prompt"
+Subtitle.Text = "create By Jerry"
 Subtitle.TextColor3 = Color3.fromRGB(145,145,160)
 Subtitle.TextSize = 12
 Subtitle.Font = Enum.Font.Gotham
@@ -180,8 +182,8 @@ local InfoPage = CreatePage()
 
 StealPage.Visible = true
 
---// Button Generator
-local function CreatePageButton(name, text, y)
+--// Button Generator (ទទួលយក Image ID ផ្សេងៗគ្នា)
+local function CreatePageButton(name, text, y, imageId)
     local Button = Instance.new("TextButton")
     Button.Name = name
     Button.Size = UDim2.new(1, -20, 0, 52)
@@ -203,7 +205,7 @@ local function CreatePageButton(name, text, y)
     Logo.Size = UDim2.new(0, 27, 0, 27)
     Logo.Position = UDim2.new(0, 13, 0.5, -13)
     Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://135995313313068" -- ID ថ្មីរបស់អ្នក
+    Logo.Image = "rbxassetid://" .. imageId
     Logo.ScaleType = Enum.ScaleType.Fit
     Logo.ZIndex = 10003
     Logo.Parent = Button
@@ -223,15 +225,16 @@ local function CreatePageButton(name, text, y)
     return Button
 end
 
-local StealButton = CreatePageButton("StealButton", "Steal", 20)
-local InfoButton = CreatePageButton("InfoButton", "Info", 82)
+-- បញ្ចូល ID ថ្មីសម្រាប់ប៊ូតុងនីមួយៗ
+local StealButton = CreatePageButton("StealButton", "Steal", 20, "102182705518322")
+local InfoButton = CreatePageButton("InfoButton", "Info", 82, "87608274860948")
 
 --// STEAL PAGE
 local StealTitle = Instance.new("TextLabel")
 StealTitle.Size = UDim2.new(1, -40, 0, 40)
 StealTitle.Position = UDim2.new(0, 20, 0, 20)
 StealTitle.BackgroundTransparency = 1
-StealTitle.Text = "Steal Settings"
+StealTitle.Text = "Steal "
 StealTitle.TextColor3 = Color3.fromRGB(245,245,255)
 StealTitle.TextSize = 21
 StealTitle.Font = Enum.Font.GothamBold
@@ -243,7 +246,7 @@ local StealStatus = Instance.new("TextLabel")
 StealStatus.Size = UDim2.new(1, -40, 0, 30)
 StealStatus.Position = UDim2.new(0, 20, 0, 62)
 StealStatus.BackgroundTransparency = 1
-StealStatus.Text = "Configure your prompt settings below"
+StealStatus.Text = "វាអាចយកពងលឿនជាងមុន"
 StealStatus.TextColor3 = Color3.fromRGB(145,145,160)
 StealStatus.TextSize = 13
 StealStatus.Font = Enum.Font.Gotham
@@ -273,7 +276,7 @@ local PromptText = Instance.new("TextLabel")
 PromptText.Size = UDim2.new(1, -100, 1, 0)
 PromptText.Position = UDim2.new(0, 15, 0, 0)
 PromptText.BackgroundTransparency = 1
-PromptText.Text = "Instant Prompt (0.0s)"
+PromptText.Text = "យកពងលឿន បំផុត"
 PromptText.TextColor3 = Color3.fromRGB(210,210,225)
 PromptText.TextSize = 14
 PromptText.Font = Enum.Font.GothamBold
@@ -464,4 +467,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("JERRY v1.0 Loaded with Custom IDs and CoreGui Top Layer")
+print("JERRY v1.0 Loaded with Custom Page Icons")
