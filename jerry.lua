@@ -193,6 +193,82 @@ StealStatus.Parent = StealPage
 Instance.new("UICorner", StealStatus).CornerRadius = UDim.new(0, 6)
 
 ---------------------------------------------------------
+-- PROXIMITY PROMPT: SAFE MONITOR TOGGLE
+-- This only monitors/counts prompts locally.
+-- It does NOT activate, modify, or bypass prompts.
+---------------------------------------------------------
+local PromptMonitorEnabled = false
+local PromptMonitorConnection = nil
+
+local PromptToggle = Instance.new("TextButton", StealPage)
+PromptToggle.Size = UDim2.new(1, -20, 0, 42)
+PromptToggle.Position = UDim2.new(0, 10, 0, 135)
+PromptToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+PromptToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+PromptToggle.Font = Enum.Font.SourceSansBold
+PromptToggle.TextSize = 16
+PromptToggle.Text = "ProximityPrompt Monitor: OFF"
+Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(0, 6)
+
+local PromptCount = Instance.new("TextLabel", StealPage)
+PromptCount.Size = UDim2.new(1, -20, 0, 35)
+PromptCount.Position = UDim2.new(0, 10, 0, 185)
+PromptCount.BackgroundTransparency = 1
+PromptCount.TextColor3 = Color3.fromRGB(180, 180, 180)
+PromptCount.Font = Enum.Font.SourceSans
+PromptCount.TextSize = 14
+PromptCount.Text = "Detected ProximityPrompts: 0"
+
+local function updatePromptCount()
+    local count = 0
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            count += 1
+        end
+    end
+
+    PromptCount.Text = "Detected ProximityPrompts: " .. tostring(count)
+end
+
+local function stopPromptMonitor()
+    PromptMonitorEnabled = false
+
+    if PromptMonitorConnection then
+        PromptMonitorConnection:Disconnect()
+        PromptMonitorConnection = nil
+    end
+
+    PromptToggle.Text = "ProximityPrompt Monitor: OFF"
+end
+
+local function startPromptMonitor()
+    PromptMonitorEnabled = true
+    PromptToggle.Text = "ProximityPrompt Monitor: ON"
+    updatePromptCount()
+
+    PromptMonitorConnection = RunService.Heartbeat:Connect(function()
+        if not PromptMonitorEnabled then
+            return
+        end
+
+        -- Update occasionally without changing or activating prompts.
+        if math.floor(os.clock() * 2) % 2 == 0 then
+            updatePromptCount()
+        end
+    end)
+end
+
+PromptToggle.MouseButton1Click:Connect(function()
+    if PromptMonitorEnabled then
+        stopPromptMonitor()
+    else
+        startPromptMonitor()
+    end
+end)
+
+
+---------------------------------------------------------
 -- PAGE 3: INFO
 ---------------------------------------------------------
 local MyAvatar = Instance.new("ImageLabel")
