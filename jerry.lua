@@ -1,18 +1,11 @@
---[[
-    JERRY v1.0
-    Clean UI: Info + Steal
-    Animation / Emote / Home / Player functions removed.
-]]
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 -- Create Main ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DeltaCustomUI"
 ScreenGui.ResetOnSpawn = false
-
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Main UI Frame
@@ -57,18 +50,10 @@ end)
 ---------------------------------------------------------
 -- Top Header Logo, Title & Close Button
 ---------------------------------------------------------
-local MainLogo = Instance.new("ImageLabel")
-MainLogo.Name = "MainLogo"
-MainLogo.Size = UDim2.new(0, 35, 0, 35)
-MainLogo.Position = UDim2.new(0, 10, 0, 8)
-MainLogo.Image = "rbxassetid://133870737244711"
-MainLogo.BackgroundTransparency = 1
-MainLogo.Parent = MainFrame
-
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0, 200, 0, 35)
 Title.Position = UDim2.new(0, 50, 0, 8)
-Title.Text = "JERRY v1.0"
+Title.Text = "JERRY v1.0 (Auto Steal)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
@@ -119,14 +104,6 @@ StealPage.Size = UDim2.new(1, 0, 1, 0)
 StealPage.BackgroundTransparency = 1
 StealPage.Visible = false
 
-local EmotePage = Instance.new("Frame", PageContainer)
-EmotePage.Size = UDim2.new(1, 0, 1, 0)
-EmotePage.BackgroundTransparency = 1
-
-local AnimPage = Instance.new("Frame", PageContainer)
-AnimPage.Size = UDim2.new(1, 0, 1, 0)
-AnimPage.BackgroundTransparency = 1
-
 local function hideAllPages()
     InfoPage.Visible = false
     StealPage.Visible = false
@@ -156,56 +133,22 @@ createTabBtn("Info", 10, InfoPage)
 createTabBtn("Steal", 50, StealPage)
 
 ---------------------------------------------------------
--- PAGE: STEAL
--- Safe UI toggle only; does not activate or modify prompts.
+-- PAGE: STEAL & AUTO STEAL (Advanced Logic)
 ---------------------------------------------------------
-
--- 0.0s ProximityPrompt setting (for prompts owned by this UI's game)
-local PromptToggleFrame = Instance.new("Frame", StealPage)
-PromptToggleFrame.Size = UDim2.new(1, -20, 0, 45)
-PromptToggleFrame.Position = UDim2.new(0, 10, 0, 55)
-PromptToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Instance.new("UICorner", PromptToggleFrame).CornerRadius = UDim.new(0, 6)
-
-local PromptLabel = Instance.new("TextLabel", PromptToggleFrame)
-PromptLabel.Size = UDim2.new(1, -70, 1, 0)
-PromptLabel.Position = UDim2.new(0, 12, 0, 0)
-PromptLabel.BackgroundTransparency = 1
-PromptLabel.Text = "ProximityPrompt 0.0s"
-PromptLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-PromptLabel.Font = Enum.Font.SourceSansBold
-PromptLabel.TextSize = 15
-PromptLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local PromptToggle = Instance.new("TextButton", PromptToggleFrame)
-PromptToggle.Size = UDim2.new(0, 45, 0, 24)
-PromptToggle.Position = UDim2.new(1, -55, 0.5, -12)
-PromptToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-PromptToggle.Text = ""
-Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(1, 0)
-
-local PromptEnabled = false
-
-PromptToggle.MouseButton1Click:Connect(function()
-    PromptEnabled = not PromptEnabled
-    PromptToggle.BackgroundColor3 = PromptEnabled
-        and Color3.fromRGB(46, 204, 113)
-        or Color3.fromRGB(70, 70, 70)
-end)
-
 local StealTitle = Instance.new("TextLabel", StealPage)
 StealTitle.Size = UDim2.new(1, -20, 0, 35)
 StealTitle.Position = UDim2.new(0, 10, 0, 10)
 StealTitle.BackgroundTransparency = 1
-StealTitle.Text = "Steal"
+StealTitle.Text = "Auto Steal Controls"
 StealTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 StealTitle.Font = Enum.Font.SourceSansBold
-StealTitle.TextSize = 20
+StealTitle.TextSize = 18
 StealTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+-- 1. Prompt 0.0s Toggle Frame
 local PromptFrame = Instance.new("Frame", StealPage)
 PromptFrame.Size = UDim2.new(1, -20, 0, 45)
-PromptFrame.Position = UDim2.new(0, 10, 0, 55)
+PromptFrame.Position = UDim2.new(0, 10, 0, 50)
 PromptFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Instance.new("UICorner", PromptFrame).CornerRadius = UDim.new(0, 6)
 
@@ -213,10 +156,10 @@ local PromptLabel = Instance.new("TextLabel", PromptFrame)
 PromptLabel.Size = UDim2.new(1, -70, 1, 0)
 PromptLabel.Position = UDim2.new(0, 12, 0, 0)
 PromptLabel.BackgroundTransparency = 1
-PromptLabel.Text = "ProximityPrompt"
+PromptLabel.Text = "Instant Prompt (0.0s)"
 PromptLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 PromptLabel.Font = Enum.Font.SourceSansBold
-PromptLabel.TextSize = 15
+PromptLabel.TextSize = 14
 PromptLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local PromptToggle = Instance.new("TextButton", PromptFrame)
@@ -226,31 +169,134 @@ PromptToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 PromptToggle.Text = ""
 Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(1, 0)
 
+-- 2. Auto Steal Toggle Frame
+local AutoStealFrame = Instance.new("Frame", StealPage)
+AutoStealFrame.Size = UDim2.new(1, -20, 0, 45)
+AutoStealFrame.Position = UDim2.new(0, 10, 0, 105)
+AutoStealFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Instance.new("UICorner", AutoStealFrame).CornerRadius = UDim.new(0, 6)
+
+local AutoStealLabel = Instance.new("TextLabel", AutoStealFrame)
+AutoStealLabel.Size = UDim2.new(1, -70, 1, 0)
+AutoStealLabel.Position = UDim2.new(0, 12, 0, 0)
+AutoStealLabel.BackgroundTransparency = 1
+AutoStealLabel.Text = "Auto Steal Good Eggs"
+AutoStealLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoStealLabel.Font = Enum.Font.SourceSansBold
+AutoStealLabel.TextSize = 14
+AutoStealLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local AutoStealToggle = Instance.new("TextButton", AutoStealFrame)
+AutoStealToggle.Size = UDim2.new(0, 45, 0, 24)
+AutoStealToggle.Position = UDim2.new(1, -55, 0.5, -12)
+AutoStealToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+AutoStealToggle.Text = ""
+Instance.new("UICorner", AutoStealToggle).CornerRadius = UDim.new(1, 0)
+
+local StatusLabel = Instance.new("TextLabel", StealPage)
+StatusLabel.Size = UDim2.new(1, -20, 0, 30)
+StatusLabel.Position = UDim2.new(0, 10, 0, 155)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Status: OFF"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.TextSize = 14
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Logic Implementation
 local PromptEnabled = false
+local AutoStealEnabled = false
+local originalHoldDurations = {}
 
 PromptToggle.MouseButton1Click:Connect(function()
     PromptEnabled = not PromptEnabled
-    PromptToggle.BackgroundColor3 = PromptEnabled
-        and Color3.fromRGB(46, 204, 113)
-        or Color3.fromRGB(70, 70, 70)
+    PromptToggle.BackgroundColor3 = PromptEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(70, 70, 70)
+    
+    if PromptEnabled then
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                if not originalHoldDurations[v] then
+                    originalHoldDurations[v] = v.HoldDuration
+                end
+                v.HoldDuration = 0
+            end
+        end
+    else
+        for v, orig in pairs(originalHoldDurations) do
+            if v and v.Parent then v.HoldDuration = orig end
+        end
+    end
 end)
 
-local PromptStatus = Instance.new("TextLabel", StealPage)
-PromptStatus.Size = UDim2.new(1, -20, 0, 30)
-PromptStatus.Position = UDim2.new(0, 10, 0, 110)
-PromptStatus.BackgroundTransparency = 1
-PromptStatus.Text = "Status: OFF"
-PromptStatus.TextColor3 = Color3.fromRGB(180, 180, 180)
-PromptStatus.Font = Enum.Font.SourceSans
-PromptStatus.TextSize = 14
-PromptStatus.TextXAlignment = Enum.TextXAlignment.Left
+AutoStealToggle.MouseButton1Click:Connect(function()
+    AutoStealEnabled = not AutoStealEnabled
+    AutoStealToggle.BackgroundColor3 = AutoStealEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(70, 70, 70)
+    StatusLabel.Text = AutoStealEnabled and "Status: RUNNING (Scanning Zones & Avoiding Guards)" or "Status: OFF"
+end)
 
-PromptToggle.MouseButton1Click:Connect(function()
-    PromptStatus.Text = PromptEnabled and "Status: ON" or "Status: OFF"
+-- Guard & Area Scanning Loop (Covers Desert, Prehistoric, Titan Temple, Cosmic)
+local GUARD_RANGE = 300
+
+local function isGuardNearby(myPos)
+    local objFolder = Workspace:FindFirstChild("__OBJECTS")
+    if not objFolder then return false end
+    local areas = objFolder:FindFirstChild("Areas")
+    if not areas then return false end
+    
+    for _, area in ipairs(areas:GetChildren()) do
+        local guardAreas = area:FindFirstChild("GuardAreas")
+        if guardAreas then
+            for _, guard in ipairs(guardAreas:GetDescendants()) do
+                if guard:IsA("BasePart") then
+                    if (myPos - guard.Position).Magnitude <= GUARD_RANGE then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+task.spawn(function()
+    while task.wait(0.4) do
+        if AutoStealEnabled then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local root = char.HumanoidRootPart
+                
+                -- Check guards before taking action
+                if not isGuardNearby(root.Position) then
+                    local objFolder = Workspace:FindFirstChild("__OBJECTS")
+                    local areas = objFolder and objFolder:FindFirstChild("Areas")
+                    
+                    if areas then
+                        for _, area in ipairs(areas:GetChildren()) do
+                            local eggsContainer = area:FindFirstChild("Eggs") or area
+                            for _, egg in ipairs(eggsContainer:GetChildren()) do
+                                local rarity = egg:GetAttribute("Rarity") or ""
+                                -- Target high-tier or good eggs automatically
+                                if rarity == "Legendary" or rarity == "Mythic" or rarity == "Divine" or rarity == "Eternal" or rarity == "Epic" then
+                                    local prompt = egg:FindFirstChildWhichIsA("ProximityPrompt", true)
+                                    if prompt then
+                                        fireproximityprompt(prompt)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                else
+                    StatusLabel.Text = "Status: GUARD NEARBY! (Paused)"
+                    task.wait(1)
+                    StatusLabel.Text = "Status: RUNNING..."
+                end
+            end
+        end
+    end
 end)
 
 ---------------------------------------------------------
--- PAGE 3: INFO
+-- PAGE: INFO
 ---------------------------------------------------------
 local MyAvatar = Instance.new("ImageLabel")
 MyAvatar.Size = UDim2.new(0, 85, 0, 85)
@@ -271,5 +317,3 @@ MyInfoText.BackgroundTransparency = 1
 MyInfoText.Font = Enum.Font.SourceSans
 MyInfoText.TextSize = 16
 MyInfoText.Parent = InfoPage
-
----------------------------------------------------------
