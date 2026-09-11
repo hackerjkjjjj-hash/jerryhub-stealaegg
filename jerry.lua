@@ -1,21 +1,32 @@
---// JERRY v1.0 - UI + Top DisplayOrder + Instant Prompt
---// Main Logo: 74724530538319
---// Button Logo: 131681030058686
+--// JERRY v1.0 - Custom IDs + Ultra Top Layer (Above Roblox Logo & Menu)
+--// Button Logo: 135995313313068
+--// Main Logo: 133870737244711
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
 
 local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
 
---// ScreenGui (បន្ថែម DisplayOrder ឱ្យនៅពីលើគេបង្អស់ ធធានាថាមិនលិចក្រោម Menu ហ្គេម)
+--// ScreenGui (ប្រើប្រាស់ gethui ឬ CoreGui ដើម្បីให้อยู่เหนือ Logo និង Menu Roblox ដាច់ខាត)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "JERRY_UI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder = 999999 
-ScreenGui.Parent = PlayerGui
+ScreenGui.DisplayOrder = 2147483647 -- កម្រិតสูงสุดរបស់ Roblox
+
+local success, container = pcall(function()
+    return gethui()
+end)
+
+if not success or not container then
+    pcall(function()
+        container = CoreGui
+    end)
+end
+
+ScreenGui.Parent = container or Player:WaitForChild("PlayerGui")
 
 ---------------------------------------------------------
 -- Floating Toggle Button
@@ -26,11 +37,11 @@ OpenButton.Size = UDim2.new(0, 50, 0, 50)
 OpenButton.Position = UDim2.new(0, 20, 0.5, -25)
 OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 OpenButton.BackgroundTransparency = 0.2
-OpenButton.Image = "rbxassetid://131681030058686"
+OpenButton.Image = "rbxassetid://135995313313068" -- ID ថ្មីរបស់អ្នក
 OpenButton.Active = true
 OpenButton.Draggable = true
 OpenButton.ScaleType = Enum.ScaleType.Fit
-OpenButton.ZIndex = 999
+OpenButton.ZIndex = 99999
 OpenButton.Parent = ScreenGui
 
 local openCorner = Instance.new("UICorner", OpenButton)
@@ -50,7 +61,7 @@ MainFrame.Position = UDim2.new(0.5, -325, 0.5, -195)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 11, 17)
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = true
-MainFrame.ZIndex = 100
+MainFrame.ZIndex = 10000
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -72,7 +83,7 @@ local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 65)
 TopBar.BackgroundColor3 = Color3.fromRGB(8, 9, 14)
 TopBar.BorderSizePixel = 0
-TopBar.ZIndex = 101
+TopBar.ZIndex = 10001
 TopBar.Parent = MainFrame
 
 local TopCorner = Instance.new("UICorner")
@@ -85,9 +96,9 @@ MainLogo.Name = "MainLogo"
 MainLogo.Size = UDim2.new(0, 45, 0, 45)
 MainLogo.Position = UDim2.new(0, 12, 0, 10)
 MainLogo.BackgroundTransparency = 1
-MainLogo.Image = "rbxassetid://74724530538319"
+MainLogo.Image = "rbxassetid://133870737244711" -- ID ថ្មីរបស់អ្នក
 MainLogo.ScaleType = Enum.ScaleType.Fit
-MainLogo.ZIndex = 102
+MainLogo.ZIndex = 10002
 MainLogo.Parent = TopBar
 
 --// Title
@@ -100,7 +111,7 @@ Title.TextColor3 = Color3.fromRGB(245,245,255)
 Title.TextSize = 20
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.ZIndex = 102
+Title.ZIndex = 10002
 Title.Parent = TopBar
 
 local Subtitle = Instance.new("TextLabel")
@@ -112,7 +123,7 @@ Subtitle.TextColor3 = Color3.fromRGB(145,145,160)
 Subtitle.TextSize = 12
 Subtitle.Font = Enum.Font.Gotham
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
-Subtitle.ZIndex = 102
+Subtitle.ZIndex = 10002
 Subtitle.Parent = TopBar
 
 --// Close Button (លាក់ MainFrame)
@@ -125,7 +136,7 @@ Close.TextColor3 = Color3.new(1,1,1)
 Close.TextSize = 17
 Close.Font = Enum.Font.GothamBold
 Close.BorderSizePixel = 0
-Close.ZIndex = 102
+Close.ZIndex = 10002
 Close.Parent = TopBar
 
 local CloseCorner = Instance.new("UICorner")
@@ -142,7 +153,7 @@ Sidebar.Size = UDim2.new(0, 155, 1, -65)
 Sidebar.Position = UDim2.new(0, 0, 0, 65)
 Sidebar.BackgroundColor3 = Color3.fromRGB(14, 15, 22)
 Sidebar.BorderSizePixel = 0
-Sidebar.ZIndex = 101
+Sidebar.ZIndex = 10001
 Sidebar.Parent = MainFrame
 
 --// Content
@@ -150,7 +161,7 @@ local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -155, 1, -65)
 Content.Position = UDim2.new(0, 155, 0, 65)
 Content.BackgroundTransparency = 1
-Content.ZIndex = 101
+Content.ZIndex = 10001
 Content.Parent = MainFrame
 
 --// Page function
@@ -159,7 +170,7 @@ local function CreatePage()
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
     Page.Visible = false
-    Page.ZIndex = 102
+    Page.ZIndex = 10002
     Page.Parent = Content
     return Page
 end
@@ -179,7 +190,7 @@ local function CreatePageButton(name, text, y)
     Button.Text = ""
     Button.BorderSizePixel = 0
     Button.AutoButtonColor = false
-    Button.ZIndex = 102
+    Button.ZIndex = 10002
     Button.Parent = Sidebar
 
     local Corner = Instance.new("UICorner")
@@ -192,9 +203,9 @@ local function CreatePageButton(name, text, y)
     Logo.Size = UDim2.new(0, 27, 0, 27)
     Logo.Position = UDim2.new(0, 13, 0.5, -13)
     Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://131681030058686"
+    Logo.Image = "rbxassetid://135995313313068" -- ID ថ្មីរបស់អ្នក
     Logo.ScaleType = Enum.ScaleType.Fit
-    Logo.ZIndex = 103
+    Logo.ZIndex = 10003
     Logo.Parent = Button
 
     local Text = Instance.new("TextLabel")
@@ -206,7 +217,7 @@ local function CreatePageButton(name, text, y)
     Text.TextSize = 15
     Text.Font = Enum.Font.GothamBold
     Text.TextXAlignment = Enum.TextXAlignment.Left
-    Text.ZIndex = 103
+    Text.ZIndex = 10003
     Text.Parent = Button
 
     return Button
@@ -225,7 +236,7 @@ StealTitle.TextColor3 = Color3.fromRGB(245,245,255)
 StealTitle.TextSize = 21
 StealTitle.Font = Enum.Font.GothamBold
 StealTitle.TextXAlignment = Enum.TextXAlignment.Left
-StealTitle.ZIndex = 103
+StealTitle.ZIndex = 10003
 StealTitle.Parent = StealPage
 
 local StealStatus = Instance.new("TextLabel")
@@ -237,7 +248,7 @@ StealStatus.TextColor3 = Color3.fromRGB(145,145,160)
 StealStatus.TextSize = 13
 StealStatus.Font = Enum.Font.Gotham
 StealStatus.TextXAlignment = Enum.TextXAlignment.Left
-StealStatus.ZIndex = 103
+StealStatus.ZIndex = 10003
 StealStatus.Parent = StealPage
 
 --// Instant Prompt Card & Toggle
@@ -246,7 +257,7 @@ PromptCard.Size = UDim2.new(1, -40, 0, 60)
 PromptCard.Position = UDim2.new(0, 20, 0, 105)
 PromptCard.BackgroundColor3 = Color3.fromRGB(18,19,28)
 PromptCard.BorderSizePixel = 0
-PromptCard.ZIndex = 103
+PromptCard.ZIndex = 10003
 PromptCard.Parent = StealPage
 
 local CardCorner = Instance.new("UICorner")
@@ -267,7 +278,7 @@ PromptText.TextColor3 = Color3.fromRGB(210,210,225)
 PromptText.TextSize = 14
 PromptText.Font = Enum.Font.GothamBold
 PromptText.TextXAlignment = Enum.TextXAlignment.Left
-PromptText.ZIndex = 104
+PromptText.ZIndex = 10004
 PromptText.Parent = PromptCard
 
 local PromptToggle = Instance.new("TextButton")
@@ -276,7 +287,7 @@ PromptToggle.Position = UDim2.new(1, -65, 0.5, -13)
 PromptToggle.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
 PromptToggle.Text = ""
 PromptToggle.AutoButtonColor = false
-PromptToggle.ZIndex = 104
+PromptToggle.ZIndex = 10004
 PromptToggle.Parent = PromptCard
 
 local ToggleCorner = Instance.new("UICorner")
@@ -288,7 +299,7 @@ ToggleCircle.Size = UDim2.new(0, 20, 0, 20)
 ToggleCircle.Position = UDim2.new(0, 3, 0.5, -10)
 ToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 210)
 ToggleCircle.BorderSizePixel = 0
-ToggleCircle.ZIndex = 105
+ToggleCircle.ZIndex = 10005
 ToggleCircle.Parent = PromptToggle
 
 local CircleCorner = Instance.new("UICorner")
@@ -348,7 +359,7 @@ InfoTitle.TextColor3 = Color3.fromRGB(245,245,255)
 InfoTitle.TextSize = 21
 InfoTitle.Font = Enum.Font.GothamBold
 InfoTitle.TextXAlignment = Enum.TextXAlignment.Left
-InfoTitle.ZIndex = 103
+InfoTitle.ZIndex = 10003
 InfoTitle.Parent = InfoPage
 
 -- Avatar
@@ -357,7 +368,7 @@ Avatar.Size = UDim2.new(0, 90, 0, 90)
 Avatar.Position = UDim2.new(0, 20, 0, 75)
 Avatar.BackgroundColor3 = Color3.fromRGB(25,25,35)
 Avatar.BorderSizePixel = 0
-Avatar.ZIndex = 103
+Avatar.ZIndex = 10003
 Avatar.Parent = InfoPage
 
 local AvatarCorner = Instance.new("UICorner")
@@ -384,7 +395,7 @@ UserInfo.TextSize = 14
 UserInfo.Font = Enum.Font.Gotham
 UserInfo.TextXAlignment = Enum.TextXAlignment.Left
 UserInfo.TextYAlignment = Enum.TextYAlignment.Top
-UserInfo.ZIndex = 103
+UserInfo.ZIndex = 10003
 UserInfo.Parent = InfoPage
 
 --// Page switching
@@ -453,4 +464,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("JERRY v1.0 Loaded with DisplayOrder fix")
+print("JERRY v1.0 Loaded with Custom IDs and CoreGui Top Layer")
