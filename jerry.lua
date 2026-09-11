@@ -1,6 +1,6 @@
---// JERRY v1.0 - UI + Fixed Visible Toggle Button + Instant Prompt
---// Main Logo: 74724530538319[span_0](start_span)[span_0](end_span)
---// Button Logo: 131681030058686[span_1](start_span)[span_1](end_span)
+--// JERRY v1.0 - UI + Top DisplayOrder + Instant Prompt
+--// Main Logo: 74724530538319
+--// Button Logo: 131681030058686
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,27 +9,28 @@ local Workspace = game:GetService("Workspace")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
---// ScreenGui
+--// ScreenGui (បន្ថែម DisplayOrder ឱ្យនៅពីលើគេបង្អស់ ធធានាថាមិនលិចក្រោម Menu ហ្គេម)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "JERRY_UI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999999 
 ScreenGui.Parent = PlayerGui
 
 ---------------------------------------------------------
--- Floating Toggle Button (កែសម្រួលឱ្យមានពណ៌ច្បាស់ ងាយស្រួលឃើញ)
+-- Floating Toggle Button
 ---------------------------------------------------------
 local OpenButton = Instance.new("ImageButton")
 OpenButton.Name = "OpenButton"
 OpenButton.Size = UDim2.new(0, 50, 0, 50)
 OpenButton.Position = UDim2.new(0, 20, 0.5, -25)
-OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30) -- ដាក់ពណ៌ផ្ទៃខាងក្រោយឱ្យងាយឃើញ
+OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 OpenButton.BackgroundTransparency = 0.2
-OpenButton.Image = "rbxassetid://131681030058686" --[span_2](start_span)[span_2](end_span)
+OpenButton.Image = "rbxassetid://131681030058686"
 OpenButton.Active = true
 OpenButton.Draggable = true
 OpenButton.ScaleType = Enum.ScaleType.Fit
-OpenButton.ZIndex = 999 -- ធានាថានៅលើគេបង្អស់
+OpenButton.ZIndex = 999
 OpenButton.Parent = ScreenGui
 
 local openCorner = Instance.new("UICorner", OpenButton)
@@ -84,7 +85,7 @@ MainLogo.Name = "MainLogo"
 MainLogo.Size = UDim2.new(0, 45, 0, 45)
 MainLogo.Position = UDim2.new(0, 12, 0, 10)
 MainLogo.BackgroundTransparency = 1
-MainLogo.Image = "rbxassetid://74724530538319" --[span_3](start_span)[span_3](end_span)
+MainLogo.Image = "rbxassetid://74724530538319"
 MainLogo.ScaleType = Enum.ScaleType.Fit
 MainLogo.ZIndex = 102
 MainLogo.Parent = TopBar
@@ -191,7 +192,7 @@ local function CreatePageButton(name, text, y)
     Logo.Size = UDim2.new(0, 27, 0, 27)
     Logo.Position = UDim2.new(0, 13, 0.5, -13)
     Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://131681030058686" --[span_4](start_span)[span_4](end_span)
+    Logo.Image = "rbxassetid://131681030058686"
     Logo.ScaleType = Enum.ScaleType.Fit
     Logo.ZIndex = 103
     Logo.Parent = Button
@@ -452,4 +453,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("JERRY v1.0 Loaded Successfully")
+print("JERRY v1.0 Loaded with DisplayOrder fix")
