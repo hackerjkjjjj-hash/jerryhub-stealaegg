@@ -1,7 +1,6 @@
---// JERRY v1.0 - Modern UI + Floating Button + Original Logos + Instant Prompt
---// Main Logo: rbxassetid://133870737244711
---// Open Button Logo: rbxassetid://135995313313068
---// Sidebar Button Logo: rbxassetid://131681030058686
+--// JERRY v1.0 - UI + Floating Toggle Button + Instant Prompt
+--// Main Logo: 74724530538319[span_1](start_span)[span_1](end_span)
+--// Button Logo: 131681030058686[span_2](start_span)[span_2](end_span)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -18,16 +17,17 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
 
 ---------------------------------------------------------
--- Circular Floating Toggle Button (Added Back)
+-- Floating Toggle Button (សម្រាប់បិទបើក Main Frame)
 ---------------------------------------------------------
 local OpenButton = Instance.new("ImageButton")
 OpenButton.Name = "OpenButton"
 OpenButton.Size = UDim2.new(0, 50, 0, 50)
 OpenButton.Position = UDim2.new(0, 15, 0.5, -25)
-OpenButton.Image = "rbxassetid://135995313313068"
+OpenButton.Image = "rbxassetid://131681030058686" --[span_3](start_span)[span_3](end_span) ប្រើប្រាស់ Button Logo របស់អ្នក
 OpenButton.BackgroundTransparency = 1
 OpenButton.Active = true
 OpenButton.Draggable = true
+OpenButton.ScaleType = Enum.ScaleType.Fit
 OpenButton.Parent = ScreenGui
 
 local openCorner = Instance.new("UICorner", OpenButton)
@@ -58,7 +58,7 @@ MainStroke.Color = Color3.fromRGB(95, 35, 180)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
--- Toggle UI visibility when clicking floating button
+-- ចុចលើប៊ូតុងអណ្តែតដើម្បី បើក/បិទ Main Frame
 OpenButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
@@ -74,13 +74,13 @@ local TopCorner = Instance.new("UICorner")
 TopCorner.CornerRadius = UDim.new(0, 12)
 TopCorner.Parent = TopBar
 
---// Main Frame Logo (Original Logo Restored)
+--// Main Frame Logo (Logo ដើមរបស់អ្នក)
 local MainLogo = Instance.new("ImageLabel")
 MainLogo.Name = "MainLogo"
 MainLogo.Size = UDim2.new(0, 45, 0, 45)
 MainLogo.Position = UDim2.new(0, 12, 0, 10)
 MainLogo.BackgroundTransparency = 1
-MainLogo.Image = "rbxassetid://133870737244711"
+MainLogo.Image = "rbxassetid://74724530538319" --[span_4](start_span)[span_4](end_span)
 MainLogo.ScaleType = Enum.ScaleType.Fit
 MainLogo.Parent = TopBar
 
@@ -107,7 +107,7 @@ Subtitle.Font = Enum.Font.Gotham
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.Parent = TopBar
 
---// Close Button (Hides MainFrame instead of destroying)
+--// Close Button (លាក់ MainFrame ទុកវិញ មិនមែនបំផ្លាញចោលទេ)
 local Close = Instance.new("TextButton")
 Close.Size = UDim2.new(0, 42, 0, 42)
 Close.Position = UDim2.new(1, -54, 0, 11)
@@ -179,7 +179,7 @@ local function CreatePageButton(name, text, y)
     Logo.Size = UDim2.new(0, 27, 0, 27)
     Logo.Position = UDim2.new(0, 13, 0.5, -13)
     Logo.BackgroundTransparency = 1
-    Logo.Image = "rbxassetid://131681030058686"
+    Logo.Image = "rbxassetid://131681030058686" --[span_5](start_span)[span_5](end_span)
     Logo.ScaleType = Enum.ScaleType.Fit
     Logo.Parent = Button
 
@@ -378,7 +378,7 @@ InfoButton.MouseButton1Click:Connect(function()
     ShowPage(InfoPage)
 end)
 
---// DRAG SYSTEM
+--// DRAG SYSTEM (សម្រាប់អូស MainFrame)
 local dragging = false
 local dragStart
 local startPosition
@@ -429,4 +429,4 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("JERRY v1.0 Fully Loaded with Open Button & Instant Prompt")
+print("JERRY v1.0 Fully Loaded with Toggle Button & Instant Prompt")
