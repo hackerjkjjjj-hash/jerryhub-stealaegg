@@ -1,7 +1,12 @@
 --[[
-    Jerry Hub - Info / Steal UI
-    Feature functions removed. UI only.
+    JERRY v1.0
+    Clean UI: Info + Steal
+    Animation / Emote / Home / Player functions removed.
 ]]
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 -- Create Main ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
@@ -104,14 +109,6 @@ PageContainer.BackgroundTransparency = 1
 PageContainer.Parent = MainFrame
 
 -- Page Instances
-local HomePage = Instance.new("Frame", PageContainer)
-HomePage.Size = UDim2.new(1, 0, 1, 0)
-HomePage.BackgroundTransparency = 1
-
-local PlayerPage = Instance.new("Frame", PageContainer)
-PlayerPage.Size = UDim2.new(1, 0, 1, 0)
-PlayerPage.BackgroundTransparency = 1
-
 local InfoPage = Instance.new("Frame", PageContainer)
 InfoPage.Size = UDim2.new(1, 0, 1, 0)
 InfoPage.BackgroundTransparency = 1
@@ -160,6 +157,7 @@ createTabBtn("Steal", 50, StealPage)
 
 ---------------------------------------------------------
 -- PAGE: STEAL
+-- Safe UI toggle only; does not activate or modify prompts.
 ---------------------------------------------------------
 local StealTitle = Instance.new("TextLabel", StealPage)
 StealTitle.Size = UDim2.new(1, -20, 0, 35)
@@ -171,50 +169,50 @@ StealTitle.Font = Enum.Font.SourceSansBold
 StealTitle.TextSize = 20
 StealTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-local StealToggleFrame = Instance.new("Frame", StealPage)
-StealToggleFrame.Size = UDim2.new(1, -20, 0, 45)
-StealToggleFrame.Position = UDim2.new(0, 10, 0, 55)
-StealToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Instance.new("UICorner", StealToggleFrame).CornerRadius = UDim.new(0, 6)
+local PromptFrame = Instance.new("Frame", StealPage)
+PromptFrame.Size = UDim2.new(1, -20, 0, 45)
+PromptFrame.Position = UDim2.new(0, 10, 0, 55)
+PromptFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Instance.new("UICorner", PromptFrame).CornerRadius = UDim.new(0, 6)
 
-local StealLabel = Instance.new("TextLabel", StealToggleFrame)
-StealLabel.Size = UDim2.new(1, -70, 1, 0)
-StealLabel.Position = UDim2.new(0, 12, 0, 0)
-StealLabel.BackgroundTransparency = 1
-StealLabel.Text = "ProximityPrompt"
-StealLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StealLabel.Font = Enum.Font.SourceSansBold
-StealLabel.TextSize = 15
-StealLabel.TextXAlignment = Enum.TextXAlignment.Left
+local PromptLabel = Instance.new("TextLabel", PromptFrame)
+PromptLabel.Size = UDim2.new(1, -70, 1, 0)
+PromptLabel.Position = UDim2.new(0, 12, 0, 0)
+PromptLabel.BackgroundTransparency = 1
+PromptLabel.Text = "ProximityPrompt"
+PromptLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PromptLabel.Font = Enum.Font.SourceSansBold
+PromptLabel.TextSize = 15
+PromptLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local StealToggle = Instance.new("TextButton", StealToggleFrame)
-StealToggle.Size = UDim2.new(0, 45, 0, 24)
-StealToggle.Position = UDim2.new(1, -55, 0.5, -12)
-StealToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-StealToggle.Text = ""
-Instance.new("UICorner", StealToggle).CornerRadius = UDim.new(1, 0)
+local PromptToggle = Instance.new("TextButton", PromptFrame)
+PromptToggle.Size = UDim2.new(0, 45, 0, 24)
+PromptToggle.Position = UDim2.new(1, -55, 0.5, -12)
+PromptToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+PromptToggle.Text = ""
+Instance.new("UICorner", PromptToggle).CornerRadius = UDim.new(1, 0)
 
-local StealState = false
-local StealStateText = Instance.new("TextLabel", StealPage)
-StealStateText.Size = UDim2.new(1, -20, 0, 30)
-StealStateText.Position = UDim2.new(0, 10, 0, 110)
-StealStateText.BackgroundTransparency = 1
-StealStateText.Text = "Status: OFF"
-StealStateText.TextColor3 = Color3.fromRGB(180, 180, 180)
-StealStateText.Font = Enum.Font.SourceSans
-StealStateText.TextSize = 14
-StealStateText.TextXAlignment = Enum.TextXAlignment.Left
+local PromptEnabled = false
 
-StealToggle.MouseButton1Click:Connect(function()
-    StealState = not StealState
+PromptToggle.MouseButton1Click:Connect(function()
+    PromptEnabled = not PromptEnabled
+    PromptToggle.BackgroundColor3 = PromptEnabled
+        and Color3.fromRGB(46, 204, 113)
+        or Color3.fromRGB(70, 70, 70)
+end)
 
-    if StealState then
-        StealToggle.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-        StealStateText.Text = "Status: ON (UI only)"
-    else
-        StealToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        StealStateText.Text = "Status: OFF"
-    end
+local PromptStatus = Instance.new("TextLabel", StealPage)
+PromptStatus.Size = UDim2.new(1, -20, 0, 30)
+PromptStatus.Position = UDim2.new(0, 10, 0, 110)
+PromptStatus.BackgroundTransparency = 1
+PromptStatus.Text = "Status: OFF"
+PromptStatus.TextColor3 = Color3.fromRGB(180, 180, 180)
+PromptStatus.Font = Enum.Font.SourceSans
+PromptStatus.TextSize = 14
+PromptStatus.TextXAlignment = Enum.TextXAlignment.Left
+
+PromptToggle.MouseButton1Click:Connect(function()
+    PromptStatus.Text = PromptEnabled and "Status: ON" or "Status: OFF"
 end)
 
 ---------------------------------------------------------
@@ -240,3 +238,4 @@ MyInfoText.Font = Enum.Font.SourceSans
 MyInfoText.TextSize = 16
 MyInfoText.Parent = InfoPage
 
+---------------------------------------------------------
